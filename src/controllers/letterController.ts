@@ -1,19 +1,30 @@
 import { Request, Response } from 'express';
 import Letter from '../models/Letter';
 import LetterFile from '../models/LetterFile';
+import Pegawai from '../models/Pegawai';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
 export async function getAllLetters(req: Request, res: Response) {
-  const letters = await Letter.findAll();
+  const letters = await Letter.findAll({
+    include: [
+      { model: Pegawai, as: 'recipient', attributes: ['nip', 'nama'] },
+      { model: Pegawai, as: 'signing_official', attributes: ['nip', 'nama'] }
+    ]
+  });
   res.json({ letters });
 }
 
 export async function getLetterById(req: Request, res: Response) {
   const { id } = req.params;
-  const letter = await Letter.findByPk(id);
+  const letter = await Letter.findByPk(id, {
+    include: [
+      { model: Pegawai, as: 'recipient', attributes: ['nip', 'nama'] },
+      { model: Pegawai, as: 'signing_official', attributes: ['nip', 'nama'] }
+    ]
+  });
   if (!letter) return res.status(404).json({ message: 'Letter not found' });
   res.json({ letter });
 }
