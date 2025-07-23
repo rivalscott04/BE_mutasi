@@ -1,5 +1,6 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import db from '../utils/db';
+import Pegawai from './Pegawai';
 
 interface LetterAttributes {
   id: string;
@@ -98,5 +99,8 @@ Letter.init(
     timestamps: false,
   }
 );
+
+Letter.belongsTo(Pegawai, { as: 'recipient', foreignKey: 'recipient_employee_nip', targetKey: 'nip' });
+Letter.belongsTo(Pegawai, { as: 'signing_official', foreignKey: 'signing_official_nip', targetKey: 'nip' });
 
 export default Letter; 
