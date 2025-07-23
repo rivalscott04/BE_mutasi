@@ -92,11 +92,16 @@ export async function generatePdfLetter(req: Request, res: Response) {
 
   const pdfBytes = await pdfDoc.save();
 
-  // 2. Simpan file ke storage
+  // 2. Simpan file ke storage dengan format baru
   const storagePath = process.env.STORAGE_PATH || './storage';
   const lettersPath = path.join(storagePath, 'letters');
   if (!fs.existsSync(lettersPath)) fs.mkdirSync(lettersPath, { recursive: true });
-  const fileName = `letter_${letter.letter_number}_${Date.now()}.pdf`;
+
+  // Format nama file: {nip}_{jenis_template_singkat}_{timestamp}.pdf
+  const nip = letter.recipient_employee_nip;
+  let jenis_template = letter.template_name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+  const timestamp = Date.now();
+  const fileName = `${nip}_${jenis_template}_${timestamp}.pdf`;
   const filePath = path.join(lettersPath, fileName);
   fs.writeFileSync(filePath, pdfBytes);
 
