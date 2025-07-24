@@ -9,7 +9,17 @@ import filesRouter from './routes/files';
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = ['https://mutasisurat.rivaldev.site'];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
+
+app.options('*', cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRouter);
