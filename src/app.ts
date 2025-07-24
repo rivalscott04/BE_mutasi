@@ -9,7 +9,10 @@ import filesRouter from './routes/files';
 
 const app = express();
 
-const allowedOrigins = ['https://mutasisurat.rivaldev.site'];
+const allowedOrigins = [
+  'https://mutasisurat.rivaldev.site',
+  'http://localhost:8080'
+];
 
 app.use(cors({
   origin: allowedOrigins,
