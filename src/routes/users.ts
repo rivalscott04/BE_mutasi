@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAllUsers, getUserById, createUser, updateUser, deleteUser } from '../controllers/userController';
+import { getAllUsers, getUserById, createUser, updateUser, deleteUser, updateUserOffice } from '../controllers/userController';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/role';
 
@@ -11,6 +11,7 @@ router.get('/', getAllUsers);
 router.get('/:id', getUserById);
 router.post('/', requireRole('admin'), createUser);
 router.put('/:id', requireRole('admin'), updateUser);
+router.put('/:id/office', updateUserOffice);
 router.delete('/:id', requireRole('admin'), deleteUser);
 
 export default router; 

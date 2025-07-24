@@ -39,6 +39,22 @@ export async function updateUser(req: Request, res: Response) {
   res.json({ user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role, office_id: user.office_id, is_active: user.is_active } });
 }
 
+export async function updateUserOffice(req: Request, res: Response) {
+  const { id } = req.params;
+  const { office_id } = req.body;
+  // @ts-ignore
+  const currentUser = req.user;
+  // Hanya boleh update office_id user sendiri, atau admin
+  if (currentUser.role !== 'admin' && currentUser.id !== id) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  const user = await User.findByPk(id);
+  if (!user) return res.status(404).json({ message: 'User not found' });
+  user.office_id = office_id;
+  await user.save();
+  res.json({ user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role, office_id: user.office_id } });
+}
+
 export async function deleteUser(req: Request, res: Response) {
   const { id } = req.params;
   const user = await User.findByPk(id);
