@@ -10,6 +10,7 @@ interface OfficeAttributes {
   fax?: string;
   email?: string;
   website?: string;
+  kode_kabko?: string;
   created_at?: Date;
   updated_at?: Date;
 }
@@ -25,6 +26,7 @@ class Office extends Model<OfficeAttributes, OfficeCreationAttributes> implement
   public fax?: string;
   public email?: string;
   public website?: string;
+  public kode_kabko?: string;
   public readonly created_at?: Date;
   public readonly updated_at?: Date;
 }
@@ -62,6 +64,10 @@ Office.init(
     },
     website: {
       type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    kode_kabko: {
+      type: DataTypes.STRING(10),
       allowNull: true,
     },
     created_at: {
