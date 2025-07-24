@@ -62,7 +62,7 @@ Pegawai.init(
       allowNull: true,
     },
     jabatan: {
-      type: DataTypes.STRING(100),
+      type: DataTypes.STRING(255),
       allowNull: true,
     },
     id: {
