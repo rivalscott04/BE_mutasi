@@ -6,11 +6,12 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import '../models';
 
 export async function getAllLetters(req: Request, res: Response) {
   const letters = await Letter.findAll({
     include: [
-      { model: Pegawai, as: 'recipient', attributes: ['nip', 'nama'] },
+      { model: Pegawai, as: 'recipient', attributes: ['nip', 'nama'], required: false },
       { model: Pegawai, as: 'signing_official', attributes: ['nip', 'nama'] }
     ]
   });
@@ -31,7 +32,7 @@ export async function getLetterById(req: Request, res: Response) {
 
 export async function createLetter(req: Request, res: Response) {
   const { office_id, created_by, template_id, template_name, letter_number, subject, recipient_employee_nip, signing_official_nip, form_data, status } = req.body;
-  if (!office_id || !created_by || !template_id || !template_name || !letter_number || !subject || !recipient_employee_nip || !signing_official_nip || !form_data) {
+  if (!office_id || !created_by || !template_id || !template_name || !letter_number || !subject || (template_id !== 9 && !recipient_employee_nip) || !signing_official_nip || !form_data) {
     return res.status(400).json({ message: 'Missing required fields' });
   }
   const letter = await Letter.create({ office_id, created_by, template_id, template_name, letter_number, subject, recipient_employee_nip, signing_official_nip, form_data, status });

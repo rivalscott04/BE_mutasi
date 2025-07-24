@@ -56,4 +56,13 @@ export async function searchPegawai(req: Request, res: Response) {
   }
   const pegawai = await Pegawai.findAll({ where: { nama: { [Op.like]: `%${q}%` } } });
   res.json({ pegawai });
+}
+
+export async function getPegawaiByIndukUnit(req: Request, res: Response) {
+  const { induk_unit } = req.query;
+  if (!induk_unit || typeof induk_unit !== 'string') {
+    return res.status(400).json({ message: 'Query parameter induk_unit is required' });
+  }
+  const pegawai = await Pegawai.findAll({ where: { induk_unit } });
+  res.json({ pegawai });
 } 

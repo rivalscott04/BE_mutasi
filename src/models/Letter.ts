@@ -70,7 +70,7 @@ Letter.init(
     },
     recipient_employee_nip: {
       type: DataTypes.STRING(20),
-      allowNull: false,
+      allowNull: true,
     },
     signing_official_nip: {
       type: DataTypes.STRING(20),
@@ -99,8 +99,5 @@ Letter.init(
     timestamps: false,
   }
 );
-
-Letter.belongsTo(Pegawai, { as: 'recipient', foreignKey: 'recipient_employee_nip', targetKey: 'nip' });
-Letter.belongsTo(Pegawai, { as: 'signing_official', foreignKey: 'signing_official_nip', targetKey: 'nip' });
 
 export default Letter; 

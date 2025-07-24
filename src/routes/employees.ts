@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAllPegawai, getPegawaiById, createPegawai, updatePegawai, deletePegawai, searchPegawai } from '../controllers/pegawaiController';
+import { getAllPegawai, getPegawaiById, createPegawai, updatePegawai, deletePegawai, searchPegawai, getPegawaiByIndukUnit } from '../controllers/pegawaiController';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/role';
 
@@ -9,6 +9,7 @@ router.use(authMiddleware);
 
 router.get('/', getAllPegawai);
 router.get('/search', searchPegawai);
+router.get('/by-induk-unit', getPegawaiByIndukUnit);
 router.get('/:id', getPegawaiById);
 router.post('/', requireRole('admin', 'operator'), createPegawai);
 router.put('/:id', requireRole('admin', 'operator'), updatePegawai);
