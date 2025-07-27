@@ -16,6 +16,7 @@ interface LetterAttributes {
   status?: 'draft' | 'generated' | 'signed';
   created_at?: Date;
   updated_at?: Date;
+  files?: any[];
 }
 
 type LetterCreationAttributes = Optional<LetterAttributes, 'id' | 'status' | 'created_at' | 'updated_at'>;
@@ -34,6 +35,7 @@ class Letter extends Model<LetterAttributes, LetterCreationAttributes> implement
   public status?: 'draft' | 'generated' | 'signed';
   public created_at?: Date;
   public updated_at?: Date;
+  public files?: any[];
 }
 
 Letter.init(

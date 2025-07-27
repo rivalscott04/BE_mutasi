@@ -29,6 +29,6 @@ Pegawai.hasMany(Letter, { foreignKey: 'signing_official_nip', as: 'signed_letter
 
 // Relasi LetterFile - Letter
 LetterFile.belongsTo(Letter, { foreignKey: 'letter_id', as: 'letter' });
-Letter.hasMany(LetterFile, { foreignKey: 'letter_id', as: 'files' });
+Letter.hasMany(LetterFile, { foreignKey: 'letter_id', as: 'files', onDelete: 'CASCADE' });
 
 export { db, User, Office, Pegawai, Letter, LetterFile }; 

@@ -59,8 +59,26 @@ export async function updateLetter(req: Request, res: Response) {
 
 export async function deleteLetter(req: Request, res: Response) {
   const { id } = req.params;
-  const letter = await Letter.findByPk(id);
+  const letter = await Letter.findByPk(id, {
+    include: [{ model: LetterFile, as: 'files' }]
+  });
   if (!letter) return res.status(404).json({ message: 'Letter not found' });
+  
+  // Hapus file fisik dari storage sebelum menghapus surat
+  if (letter.files && Array.isArray(letter.files)) {
+    for (const file of letter.files) {
+      try {
+        if (fs.existsSync(file.file_path)) {
+          fs.unlinkSync(file.file_path);
+        }
+      } catch (error) {
+        console.error('Error deleting file:', error);
+        // Lanjutkan meskipun ada error saat menghapus file
+      }
+    }
+  }
+  
+  // Hapus surat (file records akan otomatis terhapus karena cascade delete)
   await letter.destroy();
   res.json({ message: 'Letter deleted' });
 }
