@@ -163,10 +163,30 @@ export async function updateLetter(req: Request, res: Response) {
 
 export async function deleteLetter(req: Request, res: Response) {
   const { id } = req.params;
+  const userId = (req as any).user?.id; // Get user ID from auth middleware
+  const userRole = (req as any).user?.role; // Get user role from auth middleware
+  
   const letter = await Letter.findByPk(id, {
     include: [{ model: LetterFile, as: 'files' }]
   });
   if (!letter) return res.status(404).json({ message: 'Letter not found' });
+  
+  // Check if user can delete this letter
+  const canDelete = userRole === 'admin' || letter.created_by === userId;
+  if (!canDelete) {
+    writeLog('=== DELETE PERMISSION DENIED ===');
+    writeLog(`User ID: ${userId}, Role: ${userRole}`);
+    writeLog(`Letter created_by: ${letter.created_by}`);
+    writeLog('=== END DELETE PERMISSION DENIED ===');
+    return res.status(403).json({ 
+      message: 'Anda tidak memiliki izin untuk menghapus surat ini. Hanya pembuat surat atau admin yang dapat menghapus.' 
+    });
+  }
+  
+  writeLog('=== LETTER DELETE AUTHORIZED ===');
+  writeLog(`User ID: ${userId}, Role: ${userRole}`);
+  writeLog(`Letter ID: ${id}, Created by: ${letter.created_by}`);
+  writeLog('=== END LETTER DELETE AUTHORIZED ===');
   
   // Hapus file fisik dari storage sebelum menghapus surat
   if (letter.files && Array.isArray(letter.files)) {
