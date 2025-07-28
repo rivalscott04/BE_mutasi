@@ -127,6 +127,17 @@ export async function createLetter(req: Request, res: Response) {
     writeLog(`Error: ${error}`);
     writeLog(`Error message: ${error.message}`);
     writeLog(`Error stack: ${error.stack}`);
+    
+    // Handle specific database errors
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      writeLog('=== UNIQUE CONSTRAINT ERROR ===');
+      writeLog(`Duplicate letter_number: ${letter_number}`);
+      writeLog('=== END UNIQUE CONSTRAINT ERROR ===');
+      return res.status(400).json({ 
+        message: 'Nomor surat sudah ada. Silakan gunakan nomor surat yang berbeda.' 
+      });
+    }
+    
     writeLog('=== END LETTER CREATION ERROR ===');
     res.status(500).json({ message: 'Internal server error' });
   }
