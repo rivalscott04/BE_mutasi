@@ -32,9 +32,20 @@ export async function getLetterById(req: Request, res: Response) {
 
 export async function createLetter(req: Request, res: Response) {
   const { office_id, created_by, template_id, template_name, letter_number, subject, recipient_employee_nip, signing_official_nip, form_data, status } = req.body;
-  if (!office_id || !created_by || !template_id || !template_name || !letter_number || !subject || (template_id !== 9 && !recipient_employee_nip) || !signing_official_nip || !form_data) {
+  
+  // Check required fields based on template
+  const isTemplate2 = template_id === 2; // Template 2: Surat Keterangan Analisis Jabatan
+  const isTemplate9 = template_id === 9; // Template 9: SPTJM
+  
+  if (!office_id || !created_by || !template_id || !template_name || !letter_number || !subject || !signing_official_nip || !form_data) {
     return res.status(400).json({ message: 'Missing required fields' });
   }
+  
+  // Only require recipient_employee_nip for templates that need employee data (not Template 2 and Template 9)
+  if (!isTemplate2 && !isTemplate9 && !recipient_employee_nip) {
+    return res.status(400).json({ message: 'Missing required fields: recipient_employee_nip' });
+  }
+  
   const letter = await Letter.create({ office_id, created_by, template_id, template_name, letter_number, subject, recipient_employee_nip, signing_official_nip, form_data, status });
   res.status(201).json({ letter });
 }
