@@ -10,10 +10,7 @@ import '../models';
 
 // File logging function
 function writeLog(message: string) {
-  const logPath = '/var/www/BE_mutasi/app.log';
-  const timestamp = new Date().toISOString();
-  const logMessage = `[${timestamp}] ${message}\n`;
-  fs.appendFileSync(logPath, logMessage);
+  console.log(`[${new Date().toISOString()}] ${message}`);
 }
 
 export async function getAllLetters(req: Request, res: Response) {
