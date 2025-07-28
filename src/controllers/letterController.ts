@@ -33,11 +33,38 @@ export async function getLetterById(req: Request, res: Response) {
 export async function createLetter(req: Request, res: Response) {
   const { office_id, created_by, template_id, template_name, letter_number, subject, recipient_employee_nip, signing_official_nip, form_data, status } = req.body;
   
+  // Debug logging for Template 2
+  if (template_id === 2) {
+    console.log('=== TEMPLATE 2 DEBUG ===');
+    console.log('office_id:', office_id);
+    console.log('created_by:', created_by);
+    console.log('template_id:', template_id);
+    console.log('template_name:', template_name);
+    console.log('letter_number:', letter_number);
+    console.log('subject:', subject);
+    console.log('recipient_employee_nip:', recipient_employee_nip);
+    console.log('signing_official_nip:', signing_official_nip);
+    console.log('form_data keys:', Object.keys(form_data));
+    console.log('form_data values:', form_data);
+    console.log('status:', status);
+    console.log('=== END TEMPLATE 2 DEBUG ===');
+  }
+  
   // Check required fields based on template
   const isTemplate2 = template_id === 2; // Template 2: Surat Keterangan Analisis Jabatan
   const isTemplate9 = template_id === 9; // Template 9: SPTJM
   
   if (!office_id || !created_by || !template_id || !template_name || !letter_number || !subject || !signing_official_nip || !form_data) {
+    console.log('=== VALIDATION FAILED ===');
+    console.log('office_id missing:', !office_id);
+    console.log('created_by missing:', !created_by);
+    console.log('template_id missing:', !template_id);
+    console.log('template_name missing:', !template_name);
+    console.log('letter_number missing:', !letter_number);
+    console.log('subject missing:', !subject);
+    console.log('signing_official_nip missing:', !signing_official_nip);
+    console.log('form_data missing:', !form_data);
+    console.log('=== END VALIDATION FAILED ===');
     return res.status(400).json({ message: 'Missing required fields' });
   }
   
