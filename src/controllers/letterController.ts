@@ -8,6 +8,14 @@ import path from 'path';
 import crypto from 'crypto';
 import '../models';
 
+// File logging function
+function writeLog(message: string) {
+  const logPath = '/var/www/BE_mutasi/app.log';
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] ${message}\n`;
+  fs.appendFileSync(logPath, logMessage);
+}
+
 export async function getAllLetters(req: Request, res: Response) {
   const letters = await Letter.findAll({
     include: [
@@ -35,19 +43,19 @@ export async function createLetter(req: Request, res: Response) {
   
   // Debug logging for Template 2
   if (template_id === 2) {
-    console.log('=== TEMPLATE 2 DEBUG ===');
-    console.log('office_id:', office_id);
-    console.log('created_by:', created_by);
-    console.log('template_id:', template_id);
-    console.log('template_name:', template_name);
-    console.log('letter_number:', letter_number);
-    console.log('subject:', subject);
-    console.log('recipient_employee_nip:', recipient_employee_nip);
-    console.log('signing_official_nip:', signing_official_nip);
-    console.log('form_data keys:', Object.keys(form_data));
-    console.log('form_data values:', form_data);
-    console.log('status:', status);
-    console.log('=== END TEMPLATE 2 DEBUG ===');
+    writeLog('=== TEMPLATE 2 DEBUG ===');
+    writeLog(`office_id: ${office_id}`);
+    writeLog(`created_by: ${created_by}`);
+    writeLog(`template_id: ${template_id}`);
+    writeLog(`template_name: ${template_name}`);
+    writeLog(`letter_number: ${letter_number}`);
+    writeLog(`subject: ${subject}`);
+    writeLog(`recipient_employee_nip: ${recipient_employee_nip}`);
+    writeLog(`signing_official_nip: ${signing_official_nip}`);
+    writeLog(`form_data keys: ${Object.keys(form_data)}`);
+    writeLog(`form_data values: ${JSON.stringify(form_data, null, 2)}`);
+    writeLog(`status: ${status}`);
+    writeLog('=== END TEMPLATE 2 DEBUG ===');
   }
   
   // Check required fields based on template
@@ -55,26 +63,42 @@ export async function createLetter(req: Request, res: Response) {
   const isTemplate9 = template_id === 9; // Template 9: SPTJM
   
   if (!office_id || !created_by || !template_id || !template_name || !letter_number || !subject || !signing_official_nip || !form_data) {
-    console.log('=== VALIDATION FAILED ===');
-    console.log('office_id missing:', !office_id);
-    console.log('created_by missing:', !created_by);
-    console.log('template_id missing:', !template_id);
-    console.log('template_name missing:', !template_name);
-    console.log('letter_number missing:', !letter_number);
-    console.log('subject missing:', !subject);
-    console.log('signing_official_nip missing:', !signing_official_nip);
-    console.log('form_data missing:', !form_data);
-    console.log('=== END VALIDATION FAILED ===');
+    writeLog('=== VALIDATION FAILED ===');
+    writeLog(`office_id missing: ${!office_id}`);
+    writeLog(`created_by missing: ${!created_by}`);
+    writeLog(`template_id missing: ${!template_id}`);
+    writeLog(`template_name missing: ${!template_name}`);
+    writeLog(`letter_number missing: ${!letter_number}`);
+    writeLog(`subject missing: ${!subject}`);
+    writeLog(`signing_official_nip missing: ${!signing_official_nip}`);
+    writeLog(`form_data missing: ${!form_data}`);
+    writeLog(`Request body: ${JSON.stringify(req.body, null, 2)}`);
+    writeLog('=== END VALIDATION FAILED ===');
     return res.status(400).json({ message: 'Missing required fields' });
   }
   
   // Only require recipient_employee_nip for templates that need employee data (not Template 2 and Template 9)
   if (!isTemplate2 && !isTemplate9 && !recipient_employee_nip) {
+    writeLog('=== RECIPIENT EMPLOYEE NIP MISSING ===');
+    writeLog(`template_id: ${template_id}`);
+    writeLog(`recipient_employee_nip: ${recipient_employee_nip}`);
+    writeLog('=== END RECIPIENT EMPLOYEE NIP MISSING ===');
     return res.status(400).json({ message: 'Missing required fields: recipient_employee_nip' });
   }
   
-  const letter = await Letter.create({ office_id, created_by, template_id, template_name, letter_number, subject, recipient_employee_nip, signing_official_nip, form_data, status });
-  res.status(201).json({ letter });
+  try {
+    const letter = await Letter.create({ office_id, created_by, template_id, template_name, letter_number, subject, recipient_employee_nip, signing_official_nip, form_data, status });
+    writeLog('=== LETTER CREATED SUCCESSFULLY ===');
+    writeLog(`Letter ID: ${letter.id}`);
+    writeLog(`Template ID: ${template_id}`);
+    writeLog('=== END LETTER CREATED SUCCESSFULLY ===');
+    res.status(201).json({ letter });
+  } catch (error) {
+    writeLog('=== LETTER CREATION ERROR ===');
+    writeLog(`Error: ${error}`);
+    writeLog('=== END LETTER CREATION ERROR ===');
+    res.status(500).json({ message: 'Internal server error' });
+  }
 }
 
 export async function updateLetter(req: Request, res: Response) {
