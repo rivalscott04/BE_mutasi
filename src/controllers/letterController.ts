@@ -145,20 +145,38 @@ export async function createLetter(req: Request, res: Response) {
 
 export async function updateLetter(req: Request, res: Response) {
   const { id } = req.params;
-  const { office_id, template_id, template_name, letter_number, subject, recipient_employee_nip, signing_official_nip, form_data, status } = req.body;
-  const letter = await Letter.findByPk(id);
-  if (!letter) return res.status(404).json({ message: 'Letter not found' });
-  if (office_id) letter.office_id = office_id;
-  if (template_id) letter.template_id = template_id;
-  if (template_name) letter.template_name = template_name;
-  if (letter_number) letter.letter_number = letter_number;
-  if (subject) letter.subject = subject;
-  if (recipient_employee_nip) letter.recipient_employee_nip = recipient_employee_nip;
-  if (signing_official_nip) letter.signing_official_nip = signing_official_nip;
-  if (form_data) letter.form_data = form_data;
-  if (status) letter.status = status;
-  await letter.save();
-  res.json({ letter });
+  const userId = (req as any).user?.id;
+  const userRole = (req as any).user?.role;
+
+  try {
+    const letter = await Letter.findByPk(id);
+    if (!letter) {
+      return res.status(404).json({ message: 'Letter not found' });
+    }
+
+    // Check if user can update this letter
+    const canUpdate = userRole === 'admin' || letter.created_by === userId;
+    if (!canUpdate) {
+      return res.status(403).json({
+        message: 'Anda tidak memiliki izin untuk mengubah surat ini. Hanya pembuat surat atau admin yang dapat mengubah.'
+      });
+    }
+
+    const { form_data } = req.body;
+    
+    // Update the letter with new form_data
+    await letter.update({
+      form_data: form_data
+    });
+
+    res.json({ 
+      message: 'Letter updated successfully',
+      letter: letter
+    });
+  } catch (error) {
+    console.error('Error updating letter:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 }
 
 export async function deleteLetter(req: Request, res: Response) {
