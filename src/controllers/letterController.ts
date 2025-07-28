@@ -84,15 +84,49 @@ export async function createLetter(req: Request, res: Response) {
   }
   
   try {
-    const letter = await Letter.create({ office_id, created_by, template_id, template_name, letter_number, subject, recipient_employee_nip, signing_official_nip, form_data, status });
+    // Ensure form_data is properly structured for Template 2
+    let processedFormData = form_data;
+    if (template_id === 2) {
+      writeLog('=== TEMPLATE 2 FORM_DATA PROCESSING ===');
+      writeLog(`Original unitkerja: ${(form_data as any).unitkerja}`);
+      
+      // Ensure unitkerja is preserved exactly as sent
+      if ((form_data as any).unitkerja) {
+        processedFormData = {
+          ...form_data,
+          unitkerja: (form_data as any).unitkerja.toString() // Ensure it's a string
+        };
+        writeLog(`Processed unitkerja: ${(processedFormData as any).unitkerja}`);
+      }
+      writeLog('=== END TEMPLATE 2 FORM_DATA PROCESSING ===');
+    }
+    
+    const letter = await Letter.create({ 
+      office_id, 
+      created_by, 
+      template_id, 
+      template_name, 
+      letter_number, 
+      subject, 
+      recipient_employee_nip, 
+      signing_official_nip, 
+      form_data: processedFormData, 
+      status 
+    });
+    
     writeLog('=== LETTER CREATED SUCCESSFULLY ===');
     writeLog(`Letter ID: ${letter.id}`);
     writeLog(`Template ID: ${template_id}`);
+    if (template_id === 2) {
+      writeLog(`Saved unitkerja: ${(letter.form_data as any).unitkerja}`);
+    }
     writeLog('=== END LETTER CREATED SUCCESSFULLY ===');
     res.status(201).json({ letter });
-  } catch (error) {
+  } catch (error: any) {
     writeLog('=== LETTER CREATION ERROR ===');
     writeLog(`Error: ${error}`);
+    writeLog(`Error message: ${error.message}`);
+    writeLog(`Error stack: ${error.stack}`);
     writeLog('=== END LETTER CREATION ERROR ===');
     res.status(500).json({ message: 'Internal server error' });
   }
