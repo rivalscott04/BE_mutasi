@@ -1,7 +1,7 @@
 import jwt, { Secret } from 'jsonwebtoken';
 
 const JWT_SECRET: Secret = process.env.JWT_SECRET || 'secret';
-const JWT_EXPIRE = process.env.JWT_EXPIRE || '45m';
+const JWT_EXPIRE = process.env.JWT_EXPIRE || '8h';
 const REFRESH_TOKEN_SECRET: Secret = process.env.REFRESH_TOKEN_SECRET || 'refreshsecret';
 const REFRESH_TOKEN_EXPIRE = process.env.REFRESH_TOKEN_EXPIRE || '7d';
 

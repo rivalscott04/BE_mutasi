@@ -11,6 +11,7 @@ import pengajuanRouter from './routes/pengajuan';
 import jobTypeConfigRouter from './routes/jobTypeConfig';
 import { sessionMiddleware, trackImpersonation } from './middleware/sessionManager';
 import { bypassOfficeFilterForAdmin } from './middleware/adminAccess';
+import { authMiddleware } from './middleware/auth';
 
 const app = express();
 
@@ -47,17 +48,16 @@ app.use(express.urlencoded({ extended: true }));
 // Impersonation tracking middleware
 app.use(trackImpersonation);
 
-// Admin access control middleware (applied to all authenticated routes)
-app.use('/api', bypassOfficeFilterForAdmin);
-
 app.use('/api/auth', authRouter);
-app.use('/api/users', usersRouter);
-app.use('/api/offices', officesRouter);
-app.use('/api/employees', employeesRouter);
-app.use('/api/letters', lettersRouter);
-app.use('/api/files', filesRouter);
-app.use('/api/pengajuan', pengajuanRouter);
-app.use('/api/job-type-configurations', jobTypeConfigRouter);
+
+// Routes with their own authMiddleware + admin access control
+app.use('/api/users', authMiddleware, bypassOfficeFilterForAdmin, usersRouter);
+app.use('/api/offices', authMiddleware, bypassOfficeFilterForAdmin, officesRouter);
+app.use('/api/employees', authMiddleware, bypassOfficeFilterForAdmin, employeesRouter);
+app.use('/api/letters', authMiddleware, bypassOfficeFilterForAdmin, lettersRouter);
+app.use('/api/files', authMiddleware, bypassOfficeFilterForAdmin, filesRouter);
+app.use('/api/pengajuan', authMiddleware, bypassOfficeFilterForAdmin, pengajuanRouter);
+app.use('/api/job-type-configurations', authMiddleware, bypassOfficeFilterForAdmin, jobTypeConfigRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

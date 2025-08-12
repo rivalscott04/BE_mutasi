@@ -1,37 +1,55 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import Office from '../models/Office';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
-const JWT_EXPIRE = process.env.JWT_EXPIRE || '24h';
-
-function generateToken(payload: any) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRE });
-}
+import { generateToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt';
 
 export async function login(req: Request, res: Response) {
-  const { email, password } = req.body;
-  const user = await User.findOne({ where: { email } });
-  if (!user) {
-    return res.status(401).json({ message: 'Invalid email or password' });
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ where: { email } });
+    
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+    
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    
+    if (!isValid) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+    
+    const payload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      office_id: user.office_id,
+    };
+    
+    const token = generateToken(payload);
+    const refreshToken = generateRefreshToken({ id: user.id });
+    
+    // Set refresh token as httpOnly cookie
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+    
+    const userInfo = { 
+      id: user.id, 
+      email: user.email, 
+      full_name: user.full_name, 
+      role: user.role, 
+      office_id: user.office_id 
+    };
+    
+    res.json({ token, user: userInfo });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
-  
-  const isValid = await bcrypt.compare(password, user.password_hash);
-  if (!isValid) {
-    return res.status(401).json({ message: 'Invalid email or password' });
-  }
-  
-  const payload = {
-    id: user.id,
-    email: user.email,
-    role: user.role,
-    office_id: user.office_id,
-  };
-  
-  const token = generateToken(payload);
-  res.json({ token, user: payload });
 }
 
 export async function me(req: any, res: Response) {
@@ -125,10 +143,17 @@ export async function refreshToken(req: Request, res: Response) {
   }
   
   try {
-    const decoded = jwt.verify(refreshToken, JWT_SECRET) as any;
+    const decoded = verifyRefreshToken(refreshToken) as any;
     const user = await User.findByPk(decoded.id);
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
+    }
+    
+    // Include kabkota info like in 'me' endpoint
+    let kabkota;
+    if (user.office_id) {
+      const office = await Office.findByPk(user.office_id);
+      kabkota = office?.kabkota;
     }
     
     const payload = {
@@ -139,8 +164,18 @@ export async function refreshToken(req: Request, res: Response) {
     };
     
     const newToken = generateToken(payload);
-    res.json({ token: newToken, user: payload });
+    const userInfo = { 
+      id: user.id, 
+      email: user.email, 
+      full_name: user.full_name, 
+      role: user.role, 
+      office_id: user.office_id, 
+      kabkota 
+    };
+    
+    res.json({ token: newToken, user: userInfo });
   } catch (error) {
+    console.error('Refresh token error:', error);
     return res.status(401).json({ message: 'Invalid refresh token' });
   }
 }

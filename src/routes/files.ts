@@ -34,7 +34,7 @@ const fileFilter = (req: any, file: any, cb: any) => {
 
 const upload = multer({ storage, fileFilter });
 
-router.use(authMiddleware);
+// authMiddleware sudah dipasang di app level
 
 router.post('/upload', requireRole('admin', 'operator'), upload.single('file'), uploadFile);
 router.get('/:id', getFile);

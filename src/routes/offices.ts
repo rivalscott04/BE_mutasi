@@ -5,7 +5,7 @@ import { requireRole } from '../middleware/role';
 
 const router = Router();
 
-router.use(authMiddleware);
+// authMiddleware sudah dipasang di app level
 
 router.get('/', getAllOffices);
 router.get('/:id', getOfficeById);
