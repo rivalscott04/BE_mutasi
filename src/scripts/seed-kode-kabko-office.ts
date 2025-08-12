@@ -27,10 +27,18 @@ async function seedKodeKabkoOffice() {
     }
   }
   console.log('Seeder selesai: kode_kabko sudah diisi untuk semua kantor.');
-  process.exit(0);
 }
 
-seedKodeKabkoOffice().catch((err) => {
-  console.error(err);
-  process.exit(1);
-}); 
+// Only run directly if this file is executed directly
+if (require.main === module) {
+  seedKodeKabkoOffice().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+} else {
+  // Export function for use by other scripts
+  seedKodeKabkoOffice().catch((err) => {
+    console.error('Seed kode kabko office failed:', err);
+    throw err;
+  });
+} 

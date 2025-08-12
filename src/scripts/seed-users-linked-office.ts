@@ -11,7 +11,7 @@ async function seedUsersLinkedToOffice() {
       password: 'admin123',
       full_name: 'Admin Kanwil',
       role: 'admin' as const,
-      office_id: undefined,
+      office_id: null, // Admin kanwil bisa akses semua office
     },
     {
       email: 'mataram@kemenag.go.id',
@@ -98,10 +98,18 @@ async function seedUsersLinkedToOffice() {
   }
 
   console.log('Seeder selesai: Semua user operator sudah langsung ter-link ke kantor (UUID manual).');
-  process.exit(0);
 }
 
-seedUsersLinkedToOffice().catch((err) => {
-  console.error(err);
-  process.exit(1);
-}); 
+// Only run directly if this file is executed directly
+if (require.main === module) {
+  seedUsersLinkedToOffice().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+} else {
+  // Export function for use by other scripts
+  seedUsersLinkedToOffice().catch((err) => {
+    console.error('Seed users linked office failed:', err);
+    throw err;
+  });
+} 

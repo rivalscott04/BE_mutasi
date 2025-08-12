@@ -9,6 +9,8 @@ import lettersRouter from './routes/letters';
 import filesRouter from './routes/files';
 import pengajuanRouter from './routes/pengajuan';
 import jobTypeConfigRouter from './routes/jobTypeConfig';
+import { sessionMiddleware, trackImpersonation } from './middleware/sessionManager';
+import { bypassOfficeFilterForAdmin } from './middleware/adminAccess';
 
 const app = express();
 
@@ -34,10 +36,19 @@ app.options('*', cors({
   credentials: true,
 }));
 
+// Session middleware untuk impersonation tracking
+app.use(sessionMiddleware);
+
 // JSON parsing with better error handling
 app.use(express.json({ limit: '10mb' }));
 
 app.use(express.urlencoded({ extended: true }));
+
+// Impersonation tracking middleware
+app.use(trackImpersonation);
+
+// Admin access control middleware (applied to all authenticated routes)
+app.use('/api', bypassOfficeFilterForAdmin);
 
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
