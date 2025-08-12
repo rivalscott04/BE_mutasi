@@ -6,6 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "db:sync": "ts-node src/scripts/sync-db.ts",
+    "db:seed": "ts-node src/scripts/seed-job-types.ts",
+    "db:migrate": "ts-node src/scripts/migrate-pengajuan.ts",
+    "db:run-migration": "ts-node src/scripts/run-migration.ts",
     "dev": "ts-node src/server.ts",
     "start": "ts-node src/server.ts",
     "build": "tsc",

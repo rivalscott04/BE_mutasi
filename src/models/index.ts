@@ -4,6 +4,9 @@ import Office from './Office';
 import Pegawai from './Pegawai';
 import Letter from './Letter';
 import LetterFile from './LetterFile';
+import Pengajuan from './Pengajuan';
+import PengajuanFile from './PengajuanFile';
+import JobTypeConfiguration from './JobTypeConfiguration';
 
 // Relasi User - Office
 User.belongsTo(Office, { foreignKey: 'office_id', as: 'office' });
@@ -31,4 +34,16 @@ Pegawai.hasMany(Letter, { foreignKey: 'signing_official_nip', as: 'signed_letter
 LetterFile.belongsTo(Letter, { foreignKey: 'letter_id', as: 'letter' });
 Letter.hasMany(LetterFile, { foreignKey: 'letter_id', as: 'files', onDelete: 'CASCADE' });
 
-export { db, User, Office, Pegawai, Letter, LetterFile }; 
+// Relasi Pengajuan - Pegawai
+Pengajuan.belongsTo(Pegawai, { foreignKey: 'pegawai_nip', as: 'pegawai', targetKey: 'nip' });
+Pegawai.hasMany(Pengajuan, { foreignKey: 'pegawai_nip', as: 'pengajuan', sourceKey: 'nip' });
+
+// Relasi Pengajuan - Office
+Pengajuan.belongsTo(Office, { foreignKey: 'office_id', as: 'office' });
+Office.hasMany(Pengajuan, { foreignKey: 'office_id', as: 'pengajuan' });
+
+// Relasi PengajuanFile - Pengajuan
+PengajuanFile.belongsTo(Pengajuan, { foreignKey: 'pengajuan_id', as: 'pengajuan' });
+Pengajuan.hasMany(PengajuanFile, { foreignKey: 'pengajuan_id', as: 'files', onDelete: 'CASCADE' });
+
+export { db, User, Office, Pegawai, Letter, LetterFile, Pengajuan, PengajuanFile, JobTypeConfiguration }; 
