@@ -13,8 +13,8 @@ User.belongsTo(Office, { foreignKey: 'office_id', as: 'office' });
 Office.hasMany(User, { foreignKey: 'office_id', as: 'users' });
 
 // Relasi Pegawai - Office
-Pegawai.belongsTo(Office, { foreignKey: 'kantor_id', as: 'office' });
-Office.hasMany(Pegawai, { foreignKey: 'kantor_id', as: 'pegawai' });
+Pegawai.belongsTo(Office, { foreignKey: 'office_id', as: 'office' });
+Office.hasMany(Pegawai, { foreignKey: 'office_id', as: 'pegawai' });
 
 // Relasi Letter - Office
 Letter.belongsTo(Office, { foreignKey: 'office_id', as: 'office' });

@@ -64,19 +64,25 @@ async function setupDatabase() {
     console.log('✅ Offices data inserted');
     
     // Insert admin user
+    const adminPassword = 'admin123';
+    const bcrypt = require('bcrypt');
+    const adminPasswordHash = await bcrypt.hash(adminPassword, 12);  // Hash password saat running seeder
+    
     const adminQuery = `
       INSERT INTO users (id, email, password_hash, full_name, role, office_id) VALUES 
-      ('admin-001', 'admin@kemenag.go.id', '$2b$10$rQZ8K9vX2mN3pL4qR5sT6uV7wX8yZ9aA0bB1cC2dE3fF4gG5hH6iI7jJ8kK9lL0mM1nN2oO3pP4qQ5rR6sS7tT8uU9vV0wW1xX2yY3zZ', 'Admin Kanwil', 'admin', NULL)
+      ('admin-001', 'admin@kemenag.go.id', '${adminPasswordHash}', 'Admin Kanwil', 'admin', NULL)
       ON DUPLICATE KEY UPDATE
           email = VALUES(email),
           full_name = VALUES(full_name),
           role = VALUES(role),
           office_id = VALUES(office_id),
+          password_hash = VALUES(password_hash),
           updated_at = CURRENT_TIMESTAMP
     `;
     
     await db.query(adminQuery);
     console.log('✅ Admin user inserted');
+    console.log(`🔑 Admin credentials: admin@kemenag.go.id / ${adminPassword}`);
     
     // Step 3: Fix table structure
     console.log('\n🔧 Step 3: Fixing table structure...');
