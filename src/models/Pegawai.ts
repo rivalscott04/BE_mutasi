@@ -10,14 +10,14 @@ interface PegawaiAttributes {
   induk_unit?: string;
   jabatan?: string;
   id?: string;
-  kantor_id?: string;
+  office_id?: string;
   jenis_pegawai?: 'pegawai' | 'pejabat';
   aktif?: boolean;
   dibuat_pada?: Date;
   diubah_pada?: Date;
 }
 
-type PegawaiCreationAttributes = Optional<PegawaiAttributes, 'golongan' | 'tmt_pensiun' | 'unit_kerja' | 'induk_unit' | 'jabatan' | 'id' | 'kantor_id' | 'jenis_pegawai' | 'aktif' | 'dibuat_pada' | 'diubah_pada'>;
+type PegawaiCreationAttributes = Optional<PegawaiAttributes, 'golongan' | 'tmt_pensiun' | 'unit_kerja' | 'induk_unit' | 'jabatan' | 'id' | 'office_id' | 'jenis_pegawai' | 'aktif' | 'dibuat_pada' | 'diubah_pada'>;
 
 class Pegawai extends Model<PegawaiAttributes, PegawaiCreationAttributes> implements PegawaiAttributes {
   public nip!: string;
@@ -28,7 +28,7 @@ class Pegawai extends Model<PegawaiAttributes, PegawaiCreationAttributes> implem
   public induk_unit?: string;
   public jabatan?: string;
   public id?: string;
-  public kantor_id?: string;
+  public office_id?: string;
   public jenis_pegawai?: 'pegawai' | 'pejabat';
   public aktif?: boolean;
   public dibuat_pada?: Date;
@@ -70,7 +70,7 @@ Pegawai.init(
       defaultValue: DataTypes.UUIDV4,
       unique: true,
     },
-    kantor_id: {
+    office_id: {
       type: DataTypes.UUID,
       allowNull: true,
     },

@@ -1,36 +1,32 @@
-import { db, User, Office, Pegawai, Letter } from '../models';
+import db from '../utils/db';
 
-(async () => {
+async function checkData() {
   try {
-    await db.authenticate();
-    console.log('Database connection established.');
-
-    // Check users
-    const userCount = await User.count();
-    console.log(`Users: ${userCount}`);
-
-    // Check offices
-    const officeCount = await Office.count();
-    console.log(`Offices: ${officeCount}`);
-
-    // Check pegawai
-    const pegawaiCount = await Pegawai.count();
-    console.log(`Pegawai: ${pegawaiCount}`);
-
-    // Check letters
-    const letterCount = await Letter.count();
-    console.log(`Letters: ${letterCount}`);
-
-    // Show some sample users
-    const users = await User.findAll({ limit: 3 });
-    console.log('\nSample users:');
-    users.forEach(user => {
-      console.log(`- ${user.email} (${user.role})`);
-    });
-
+    console.log('🔍 Checking data in database...');
+    
+    // Check offices data
+    console.log('\n📋 Offices data:');
+    const [offices] = await db.query("SELECT id, name, kabkota FROM offices");
+    console.log(offices);
+    
+    // Check users data
+    console.log('\n👥 Users data:');
+    const [users] = await db.query("SELECT id, email, full_name, role FROM users");
+    console.log(users);
+    
+    // Check if admin user exists
+    const adminExists = users.some((user: any) => user.email === 'admin@kemenag.go.id');
+    if (adminExists) {
+      console.log('✅ Admin user exists');
+    } else {
+      console.log('❌ Admin user NOT found');
+    }
+    
     process.exit(0);
-  } catch (err) {
-    console.error('Error checking data:', err);
+  } catch (error) {
+    console.error('❌ Check failed:', error);
     process.exit(1);
   }
-})(); 
+}
+
+checkData(); 

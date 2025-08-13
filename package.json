@@ -9,6 +9,11 @@
     "db:seed": "ts-node src/scripts/seed-job-types.ts",
     "db:migrate": "ts-node src/scripts/migrate-pengajuan.ts",
     "db:run-migration": "ts-node src/scripts/run-migration.ts",
+
+
+    "db:setup": "ts-node src/scripts/setup-database.ts",
+    "db:add-fk": "ts-node src/scripts/add-foreign-keys.ts",
+    "db:check-fk": "ts-node src/scripts/check-foreign-keys.ts",
     "dev": "ts-node src/server.ts",
     "start": "ts-node src/server.ts",
     "build": "tsc",
