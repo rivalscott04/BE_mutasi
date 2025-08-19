@@ -12,7 +12,9 @@ import {
   approvePengajuan,
   rejectPengajuan,
   resubmitPengajuan,
-  deletePengajuan
+  deletePengajuan,
+  verifyFile,
+  generatePrintReport
 } from '../controllers/pengajuanController';
 import { authMiddleware } from '../middleware/auth';
 
@@ -54,16 +56,11 @@ router.get('/pegawai-grouped', authMiddleware, getPegawaiGroupedByKabupaten);
 router.post('/', authMiddleware, createPengajuan);
 router.post('/:pengajuan_id/upload', authMiddleware, upload.single('file'), uploadPengajuanFile);
 router.put('/:pengajuan_id/submit', authMiddleware, submitPengajuan);
-router.get('/:pengajuan_id', authMiddleware, getPengajuanDetail);
-router.get('/', authMiddleware, getAllPengajuan);
 
-// Approval system routes
-router.put('/:id/approve', authMiddleware, approvePengajuan);
-router.put('/:id/reject', authMiddleware, rejectPengajuan);
-router.put('/:id/resubmit', authMiddleware, resubmitPengajuan);
-router.delete('/:id', authMiddleware, deletePengajuan);
+// File verification routes - HARUS SEBELUM ROUTE DENGAN PARAMETER
+router.put('/files/:file_id/verify', authMiddleware, verifyFile);
 
-// Download file endpoint
+// Download file endpoint - HARUS SEBELUM ROUTE DENGAN PARAMETER  
 router.get('/files/:file_id', authMiddleware, async (req, res) => {
   try {
     const { file_id } = req.params;
@@ -92,5 +89,18 @@ router.get('/files/:file_id', authMiddleware, async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
+
+// Pengajuan routes - SETELAH FILE ROUTES
+router.get('/:pengajuan_id', authMiddleware, getPengajuanDetail);
+router.get('/', authMiddleware, getAllPengajuan);
+
+// Approval system routes
+router.put('/:id/approve', authMiddleware, approvePengajuan);
+router.put('/:id/reject', authMiddleware, rejectPengajuan);
+router.put('/:id/resubmit', authMiddleware, resubmitPengajuan);
+router.delete('/:id', authMiddleware, deletePengajuan);
+
+// Print report routes
+router.get('/:id/print-report', authMiddleware, generatePrintReport);
 
 export default router; 

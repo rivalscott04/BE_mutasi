@@ -614,4 +614,104 @@ export async function deletePengajuan(req: AuthRequest, res: Response) {
     console.error('Error in deletePengajuan:', error);
     res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
   }
-} 
+}
+
+// Verifikasi file individual
+export async function verifyFile(req: AuthRequest, res: Response) {
+  try {
+    const { file_id } = req.params;
+    const { verification_status, verification_notes } = req.body;
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Hanya admin yang bisa verifikasi file
+    if (user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only admin can verify files' });
+    }
+
+    const PengajuanFile = require('../models/PengajuanFile').default;
+    const file = await PengajuanFile.findByPk(file_id);
+    
+    if (!file) {
+      return res.status(404).json({ success: false, message: 'File not found' });
+    }
+
+    // Update file verification status
+    await file.update({
+      verification_status: verification_status,
+      verification_notes: verification_notes || null,
+      verified_by: user.email || user.id,
+      verified_at: new Date()
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'File verification status updated successfully',
+      data: file
+    });
+  } catch (error) {
+    console.error('Error in verifyFile:', error);
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
+// Generate laporan cetak
+export async function generatePrintReport(req: AuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const pengajuan = await Pengajuan.findByPk(id, {
+      include: [
+        { model: Pegawai, as: 'pegawai' },
+        { model: PengajuanFile, as: 'files' }
+      ]
+    });
+
+    if (!pengajuan) {
+      return res.status(404).json({ success: false, message: 'Pengajuan not found' });
+    }
+
+    // Hanya pengajuan yang sudah approved yang bisa dicetak
+    if (pengajuan.status !== 'approved') {
+      return res.status(400).json({ success: false, message: 'Only approved pengajuan can be printed' });
+    }
+
+    // Siapkan data untuk laporan
+    const pengajuanWithRelations = pengajuan as any;
+    const reportData = {
+      pengajuan: {
+        id: pengajuan.id,
+        status: pengajuan.status,
+        created_at: pengajuan.created_at,
+        approved_at: pengajuan.approved_at
+      },
+      pegawai: {
+        nama: pengajuanWithRelations.pegawai.nama,
+        nip: pengajuanWithRelations.pegawai.nip,
+        jabatan: pengajuanWithRelations.pegawai.jabatan
+      },
+      files: pengajuanWithRelations.files.map((file: any) => ({
+        file_type: file.file_type,
+        file_name: file.file_name,
+        verification_status: file.verification_status
+      }))
+    };
+
+    res.json({ 
+      success: true, 
+      message: 'Print report data generated successfully',
+      data: reportData
+    });
+  } catch (error) {
+    console.error('Error in generatePrintReport:', error);
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
