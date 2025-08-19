@@ -247,6 +247,74 @@ export async function uploadPengajuanFile(req: AuthRequest, res: Response) {
   }
 }
 
+// Update/replace multiple rejected files for a pengajuan
+export async function updatePengajuanFiles(req: AuthRequest, res: Response) {
+  try {
+    const { pengajuan_id } = req.params as any;
+    const files = (req as any).files as Express.Multer.File[] | undefined;
+    let { file_types } = req.body as { file_types?: string | string[] };
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ success: false, message: 'Tidak ada file yang diunggah' });
+    }
+
+    // Normalisasi file_types menjadi array paralel dengan files
+    if (!file_types) {
+      return res.status(400).json({ success: false, message: 'file_types diperlukan' });
+    }
+    if (!Array.isArray(file_types)) {
+      file_types = [file_types];
+    }
+    if (file_types.length !== files.length) {
+      return res.status(400).json({ success: false, message: 'Jumlah file_types tidak sesuai dengan jumlah files' });
+    }
+
+    // Pastikan pengajuan ada
+    const pengajuan = await Pengajuan.findByPk(pengajuan_id);
+    if (!pengajuan) {
+      return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
+    }
+
+    // Untuk setiap file yang diunggah, update atau buat record dan reset status verifikasi ke pending
+    const updatedFiles = [] as any[];
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const type = file_types[i];
+
+      const existing = await PengajuanFile.findOne({ where: { pengajuan_id, file_type: type } });
+      if (existing) {
+        await existing.update({
+          file_name: f.originalname,
+          file_path: f.path,
+          file_size: f.size,
+          upload_status: 'uploaded',
+          verification_status: 'pending',
+          verification_notes: null,
+          verified_by: null as any,
+          verified_at: null as any,
+        } as any);
+        updatedFiles.push(existing);
+      } else {
+        const created = await PengajuanFile.create({
+          pengajuan_id,
+          file_type: type,
+          file_name: f.originalname,
+          file_path: f.path,
+          file_size: f.size,
+          upload_status: 'uploaded',
+          verification_status: 'pending',
+        } as any);
+        updatedFiles.push(created);
+      }
+    }
+
+    return res.json({ success: true, message: 'Dokumen berhasil diperbarui', data: { files: updatedFiles } });
+  } catch (error) {
+    console.error('Error in updatePengajuanFiles:', error);
+    return res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
 // Submit pengajuan
 export async function submitPengajuan(req: AuthRequest, res: Response) {
   try {
@@ -473,8 +541,11 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
           updatedTotalDokumen = jobTypeConfig.max_dokumen;
         }
         
+        const rowJson = row.toJSON() as any;
         return {
-          ...row.toJSON(),
+          ...rowJson,
+          // Normalize status: treat 'resubmitted' as 'submitted' for processing
+          status: rowJson.status === 'resubmitted' ? 'submitted' : rowJson.status,
           total_dokumen: updatedTotalDokumen
         };
       })
@@ -610,16 +681,16 @@ export async function resubmitPengajuan(req: AuthRequest, res: Response) {
       return res.status(400).json({ success: false, message: 'Only rejected pengajuan can be resubmitted' });
     }
 
-    // Update pengajuan
+    // Update pengajuan: kembalikan ke status 'submitted' agar bisa diproses admin
     await pengajuan.update({
-      status: 'resubmitted',
+      status: 'submitted',
       resubmitted_by: user.email || user.id,
       resubmitted_at: new Date()
     });
 
     res.json({ 
       success: true, 
-      message: 'Pengajuan resubmitted successfully',
+      message: 'Pengajuan submitted ulang successfully',
       data: pengajuan
     });
   } catch (error) {

@@ -15,7 +15,8 @@ import {
   deletePengajuan,
   verifyFile,
   generatePrintReport,
-  getFilterOptions
+  getFilterOptions,
+  updatePengajuanFiles
 } from '../controllers/pengajuanController';
 import { authMiddleware } from '../middleware/auth';
 
@@ -57,6 +58,8 @@ router.get('/pegawai-grouped', authMiddleware, getPegawaiGroupedByKabupaten);
 router.post('/', authMiddleware, createPengajuan);
 router.post('/:pengajuan_id/upload', authMiddleware, upload.single('file'), uploadPengajuanFile);
 router.put('/:pengajuan_id/submit', authMiddleware, submitPengajuan);
+// Update multiple files (FormData: files[], file_types[])
+router.put('/:pengajuan_id/update-files', authMiddleware, upload.array('files'), updatePengajuanFiles);
 
 // File verification routes - HARUS SEBELUM ROUTE DENGAN PARAMETER
 router.put('/files/:file_id/verify', authMiddleware, verifyFile);
