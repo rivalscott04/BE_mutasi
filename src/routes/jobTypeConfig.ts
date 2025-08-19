@@ -8,7 +8,15 @@ const router = express.Router();
 // Get all job type configurations
 router.get('/', authMiddleware, async (req, res) => {
   try {
+    const { active_only } = req.query;
+    
+    const whereClause: any = {};
+    if (active_only === 'true') {
+      whereClause.is_active = true;
+    }
+    
     const configs = await JobTypeConfiguration.findAll({
+      where: whereClause,
       order: [['jenis_jabatan', 'ASC']]
     });
     

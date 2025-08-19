@@ -3,6 +3,7 @@ import Pengajuan from '../models/Pengajuan';
 import PengajuanFile from '../models/PengajuanFile';
 import Pegawai from '../models/Pegawai';
 import Letter from '../models/Letter';
+import JobTypeConfiguration from '../models/JobTypeConfiguration';
 import { Op } from 'sequelize';
 import { AuthRequest } from '../middleware/auth';
 
@@ -128,7 +129,7 @@ export async function getPegawaiGroupedByKabupaten(req: AuthRequest, res: Respon
 // Create pengajuan baru
 export async function createPengajuan(req: AuthRequest, res: Response) {
   try {
-    const { pegawai_nip } = req.body;
+    const { pegawai_nip, jabatan_id, jenis_jabatan } = req.body;
     const user = req.user;
 
     if (!user) {
@@ -153,19 +154,21 @@ export async function createPengajuan(req: AuthRequest, res: Response) {
       return res.status(400).json({ success: false, message: 'Pegawai belum memiliki surat yang di-generate oleh Anda' });
     }
 
-    // Determine jenis jabatan berdasarkan jumlah surat
-    let jenisJabatan;
-    if (totalDokumen >= 9) {
-      jenisJabatan = 'guru'; // Guru dengan surat lengkap (9+ surat)
-    } else {
-      jenisJabatan = 'fungsional'; // Fungsional dengan surat parsial (<9 surat)
+    // Use jenis_jabatan from request body if provided, otherwise determine based on surat count
+    let finalJenisJabatan = jenis_jabatan;
+    if (!finalJenisJabatan) {
+      if (totalDokumen >= 9) {
+        finalJenisJabatan = 'guru'; // Guru dengan surat lengkap (9+ surat)
+      } else {
+        finalJenisJabatan = 'fungsional'; // Fungsional dengan surat parsial (<9 surat)
+      }
     }
 
     // Create pengajuan
     const pengajuan = await Pengajuan.create({
       pegawai_nip,
       total_dokumen: totalDokumen,
-      jenis_jabatan: jenisJabatan,
+      jenis_jabatan: finalJenisJabatan,
       created_by: user.id,
       office_id: user.office_id || 'default'
     });
@@ -290,9 +293,84 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
       return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak memiliki akses ke pengajuan ini' });
     }
 
+    // Get required files based on jenis_jabatan
+    let requiredFiles: string[] = [];
+    try {
+      // Get from job type configuration
+      const jobTypeConfig = await JobTypeConfiguration.findOne({
+        where: { 
+          jenis_jabatan: pengajuan.jenis_jabatan,
+          is_active: true 
+        }
+      });
+      
+      if (jobTypeConfig && jobTypeConfig.required_files) {
+        // Parse JSON string to array
+        try {
+          requiredFiles = JSON.parse(jobTypeConfig.required_files);
+        } catch (parseError) {
+          console.error('Error parsing required_files JSON:', parseError);
+          requiredFiles = [];
+        }
+      } else {
+        // Fallback: use default required files based on jenis_jabatan
+        const defaultFiles: Record<string, string[]> = {
+          'guru': [
+            'surat_pengantar',
+            'surat_permohonan_dari_yang_bersangkutan',
+            'surat_keputusan_cpns',
+            'surat_keputusan_pns',
+            'surat_keputusan_kenaikan_pangkat_terakhir',
+            'surat_keputusan_jabatan_terakhir',
+            'skp_2_tahun_terakhir',
+            'surat_keterangan_bebas_temuan_inspektorat'
+          ],
+          'eselon_iv': [
+            'surat_pengantar',
+            'surat_permohonan_dari_yang_bersangkutan',
+            'surat_keputusan_cpns',
+            'surat_keputusan_pns',
+            'surat_keputusan_kenaikan_pangkat_terakhir',
+            'surat_keputusan_jabatan_terakhir',
+            'skp_2_tahun_terakhir',
+            'surat_keterangan_bebas_temuan_inspektorat',
+            'surat_keterangan_anjab_abk_instansi_asal',
+            'surat_keterangan_anjab_abk_instansi_penerima'
+          ],
+          'fungsional': [
+            'surat_pengantar',
+            'surat_permohonan_dari_yang_bersangkutan',
+            'surat_keputusan_cpns',
+            'surat_keputusan_pns',
+            'surat_keputusan_kenaikan_pangkat_terakhir',
+            'surat_keputusan_jabatan_terakhir',
+            'skp_2_tahun_terakhir',
+            'surat_keterangan_bebas_temuan_inspektorat'
+          ],
+          'pelaksana': [
+            'surat_pengantar',
+            'surat_permohonan_dari_yang_bersangkutan',
+            'surat_keputusan_cpns',
+            'surat_keputusan_pns',
+            'surat_keputusan_kenaikan_pangkat_terakhir',
+            'surat_keputusan_jabatan_terakhir',
+            'skp_2_tahun_terakhir'
+          ]
+        };
+        requiredFiles = defaultFiles[pengajuan.jenis_jabatan] || [];
+      }
+    } catch (error) {
+      console.error('Error getting required files:', error);
+      // Use empty array as fallback
+      requiredFiles = [];
+    }
+
     res.json({ 
       success: true, 
-      data: { pengajuan } 
+      data: { 
+        pengajuan,
+        requiredFiles 
+      } 
     });
   } catch (error) {
     console.error('Error in getPengajuanDetail:', error);
