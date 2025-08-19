@@ -8,7 +8,11 @@ import {
   uploadPengajuanFile, 
   submitPengajuan, 
   getPengajuanDetail,
-  getAllPengajuan
+  getAllPengajuan,
+  approvePengajuan,
+  rejectPengajuan,
+  resubmitPengajuan,
+  deletePengajuan
 } from '../controllers/pengajuanController';
 import { authMiddleware } from '../middleware/auth';
 
@@ -52,6 +56,12 @@ router.post('/:pengajuan_id/upload', authMiddleware, upload.single('file'), uplo
 router.put('/:pengajuan_id/submit', authMiddleware, submitPengajuan);
 router.get('/:pengajuan_id', authMiddleware, getPengajuanDetail);
 router.get('/', authMiddleware, getAllPengajuan);
+
+// Approval system routes
+router.put('/:id/approve', authMiddleware, approvePengajuan);
+router.put('/:id/reject', authMiddleware, rejectPengajuan);
+router.put('/:id/resubmit', authMiddleware, resubmitPengajuan);
+router.delete('/:id', authMiddleware, deletePengajuan);
 
 // Download file endpoint
 router.get('/files/:file_id', async (req, res) => {

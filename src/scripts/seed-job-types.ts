@@ -10,15 +10,16 @@ async function seedJobTypes() {
     const existingCount = await JobTypeConfiguration.count();
     if (existingCount > 0) {
       console.log(`✅ Job type configurations already exist (${existingCount} records)`);
+      console.log('💡 To reset, delete existing records first');
       return;
     }
 
-    // Default job type configurations
+    // Default job type configurations dengan maksimal 17 dokumen
     const defaultJobTypes = [
       {
         jenis_jabatan: 'Kepala Seksi',
         min_dokumen: 3,
-        max_dokumen: 8,
+        max_dokumen: 6,
         required_files: JSON.stringify([
           'SK Pangkat Terakhir',
           'SK Jabatan Terakhir',
@@ -32,7 +33,7 @@ async function seedJobTypes() {
       {
         jenis_jabatan: 'Kepala Sub Bagian',
         min_dokumen: 3,
-        max_dokumen: 8,
+        max_dokumen: 6,
         required_files: JSON.stringify([
           'SK Pangkat Terakhir',
           'SK Jabatan Terakhir',
@@ -46,7 +47,7 @@ async function seedJobTypes() {
       {
         jenis_jabatan: 'Kepala Urusan',
         min_dokumen: 3,
-        max_dokumen: 8,
+        max_dokumen: 6,
         required_files: JSON.stringify([
           'SK Pangkat Terakhir',
           'SK Jabatan Terakhir',
@@ -121,17 +122,74 @@ async function seedJobTypes() {
           'skp_2_tahun_terakhir'
         ]),
         is_active: true
+      },
+      {
+        jenis_jabatan: 'Kepala Madrasah',
+        min_dokumen: 3,
+        max_dokumen: 12,
+        required_files: JSON.stringify([
+          'surat_pengantar',
+          'surat_permohonan_dari_yang_bersangkutan',
+          'surat_keputusan_cpns',
+          'surat_keputusan_pns',
+          'surat_keputusan_kenaikan_pangkat_terakhir',
+          'surat_keputusan_jabatan_terakhir',
+          'skp_2_tahun_terakhir',
+          'surat_keterangan_bebas_temuan_inspektorat',
+          'surat_keterangan_anjab_abk_instansi_asal',
+          'surat_keterangan_anjab_abk_instansi_penerima',
+          'surat_pernyataan_tidak_hukuman_disiplin',
+          'surat_persetujuan_mutasi_asal'
+        ]),
+        is_active: true
+      },
+      {
+        jenis_jabatan: 'Wakil Kepala Madrasah',
+        min_dokumen: 3,
+        max_dokumen: 11,
+        required_files: JSON.stringify([
+          'surat_pengantar',
+          'surat_permohonan_dari_yang_bersangkutan',
+          'surat_keputusan_cpns',
+          'surat_keputusan_pns',
+          'surat_keputusan_kenaikan_pangkat_terakhir',
+          'surat_keputusan_jabatan_terakhir',
+          'skp_2_tahun_terakhir',
+          'surat_keterangan_bebas_temuan_inspektorat',
+          'surat_keterangan_anjab_abk_instansi_asal',
+          'surat_keterangan_anjab_abk_instansi_penerima',
+          'surat_pernyataan_tidak_hukuman_disiplin'
+        ]),
+        is_active: true
+      },
+      {
+        jenis_jabatan: 'Kepala TU',
+        min_dokumen: 3,
+        max_dokumen: 9,
+        required_files: JSON.stringify([
+          'surat_pengantar',
+          'surat_permohonan_dari_yang_bersangkutan',
+          'surat_keputusan_cpns',
+          'surat_keputusan_pns',
+          'surat_keputusan_kenaikan_pangkat_terakhir',
+          'surat_keputusan_jabatan_terakhir',
+          'skp_2_tahun_terakhir',
+          'surat_keterangan_bebas_temuan_inspektorat',
+          'surat_keterangan_anjab_abk_instansi_asal'
+        ]),
+        is_active: true
       }
     ];
 
     // Insert default job types
     for (const jobType of defaultJobTypes) {
-      console.log(`📝 Creating job type: ${jobType.jenis_jabatan}`);
+      console.log(`📝 Creating job type: ${jobType.jenis_jabatan} (${jobType.max_dokumen} dokumen)`);
       await JobTypeConfiguration.create(jobType);
     }
 
     console.log('\n🎉 Job type configurations seeded successfully!');
     console.log(`✅ Created ${defaultJobTypes.length} job type configurations`);
+    console.log('📊 Dokumen range: 6-12 dokumen per jenis jabatan');
 
   } catch (error) {
     console.error('❌ Error seeding job types:', error);

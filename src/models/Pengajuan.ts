@@ -11,13 +11,17 @@ interface PengajuanAttributes {
   rejection_reason?: string;
   rejected_by?: string;
   rejected_at?: Date;
+  approved_by?: string;
+  approved_at?: Date;
+  resubmitted_by?: string;
+  resubmitted_at?: Date;
   created_by: string;
   office_id: string;
   created_at?: Date;
   updated_at?: Date;
 }
 
-type PengajuanCreationAttributes = Optional<PengajuanAttributes, 'id' | 'status' | 'catatan' | 'rejection_reason' | 'rejected_by' | 'rejected_at' | 'created_at' | 'updated_at'>;
+type PengajuanCreationAttributes = Optional<PengajuanAttributes, 'id' | 'status' | 'catatan' | 'rejection_reason' | 'rejected_by' | 'rejected_at' | 'approved_by' | 'approved_at' | 'resubmitted_by' | 'resubmitted_at' | 'created_at' | 'updated_at'>;
 
 class Pengajuan extends Model<PengajuanAttributes, PengajuanCreationAttributes> implements PengajuanAttributes {
   public id!: string;
@@ -29,6 +33,10 @@ class Pengajuan extends Model<PengajuanAttributes, PengajuanCreationAttributes> 
   public rejection_reason?: string;
   public rejected_by?: string;
   public rejected_at?: Date;
+  public approved_by?: string;
+  public approved_at?: Date;
+  public resubmitted_by?: string;
+  public resubmitted_at?: Date;
   public created_by!: string;
   public office_id!: string;
   public created_at?: Date;
@@ -67,6 +75,18 @@ Pengajuan.init({
     type: DataTypes.STRING(20) 
   },
   rejected_at: { 
+    type: DataTypes.DATE 
+  },
+  approved_by: { 
+    type: DataTypes.STRING(255) 
+  },
+  approved_at: { 
+    type: DataTypes.DATE 
+  },
+  resubmitted_by: { 
+    type: DataTypes.STRING(255) 
+  },
+  resubmitted_at: { 
     type: DataTypes.DATE 
   },
   created_by: { 

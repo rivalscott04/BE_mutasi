@@ -295,9 +295,11 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
 
     // Get required files based on jenis_jabatan
     let requiredFiles: string[] = [];
+    let jobTypeConfig = null;
+    
     try {
       // Get from job type configuration
-      const jobTypeConfig = await JobTypeConfiguration.findOne({
+      jobTypeConfig = await JobTypeConfiguration.findOne({
         where: { 
           jenis_jabatan: pengajuan.jenis_jabatan,
           is_active: true 
@@ -308,12 +310,25 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
         // Parse JSON string to array
         try {
           requiredFiles = JSON.parse(jobTypeConfig.required_files);
+          console.log('✅ Using job type config for:', pengajuan.jenis_jabatan);
+          console.log('✅ Required files:', requiredFiles);
         } catch (parseError) {
           console.error('Error parsing required_files JSON:', parseError);
           requiredFiles = [];
         }
       } else {
         // Fallback: use default required files based on jenis_jabatan
+        const fungsionalUmum = [
+          'surat_pengantar',
+          'surat_permohonan_dari_yang_bersangkutan',
+          'surat_keputusan_cpns',
+          'surat_keputusan_pns',
+          'surat_keputusan_kenaikan_pangkat_terakhir',
+          'surat_keputusan_jabatan_terakhir',
+          'skp_2_tahun_terakhir',
+          'surat_keterangan_bebas_temuan_inspektorat'
+        ];
+        
         const defaultFiles: Record<string, string[]> = {
           'guru': [
             'surat_pengantar',
@@ -337,16 +352,7 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
             'surat_keterangan_anjab_abk_instansi_asal',
             'surat_keterangan_anjab_abk_instansi_penerima'
           ],
-          'fungsional': [
-            'surat_pengantar',
-            'surat_permohonan_dari_yang_bersangkutan',
-            'surat_keputusan_cpns',
-            'surat_keputusan_pns',
-            'surat_keputusan_kenaikan_pangkat_terakhir',
-            'surat_keputusan_jabatan_terakhir',
-            'skp_2_tahun_terakhir',
-            'surat_keterangan_bebas_temuan_inspektorat'
-          ],
+          'fungsional': fungsionalUmum,
           'pelaksana': [
             'surat_pengantar',
             'surat_permohonan_dari_yang_bersangkutan',
@@ -357,7 +363,10 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
             'skp_2_tahun_terakhir'
           ]
         };
-        requiredFiles = defaultFiles[pengajuan.jenis_jabatan] || [];
+        
+        requiredFiles = defaultFiles[pengajuan.jenis_jabatan] || fungsionalUmum;
+        console.log('⚠️  Using fallback for:', pengajuan.jenis_jabatan);
+        console.log('⚠️  Required files:', requiredFiles);
       }
     } catch (error) {
       console.error('Error getting required files:', error);
@@ -369,7 +378,14 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
       success: true, 
       data: { 
         pengajuan,
-        requiredFiles 
+        requiredFiles,
+        jobTypeConfig: jobTypeConfig ? {
+          id: jobTypeConfig.id,
+          jenis_jabatan: jobTypeConfig.jenis_jabatan,
+          min_dokumen: jobTypeConfig.min_dokumen,
+          max_dokumen: jobTypeConfig.max_dokumen,
+          is_active: jobTypeConfig.is_active
+        } : null
       } 
     });
   } catch (error) {
@@ -423,6 +439,171 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
     });
   } catch (error) {
     console.error('Error in getAllPengajuan:', error);
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
+// Approve pengajuan
+export async function approvePengajuan(req: AuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    const { catatan } = req.body;
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Hanya admin yang bisa approve
+    if (user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only admin can approve pengajuan' });
+    }
+
+    const pengajuan = await Pengajuan.findByPk(id);
+    if (!pengajuan) {
+      return res.status(404).json({ success: false, message: 'Pengajuan not found' });
+    }
+
+    // Hanya pengajuan dengan status submitted yang bisa diapprove
+    if (pengajuan.status !== 'submitted') {
+      return res.status(400).json({ success: false, message: 'Only submitted pengajuan can be approved' });
+    }
+
+    // Update pengajuan
+    await pengajuan.update({
+      status: 'approved',
+      catatan: catatan || null,
+      approved_by: user.email || user.id,
+      approved_at: new Date()
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Pengajuan approved successfully',
+      data: pengajuan
+    });
+  } catch (error) {
+    console.error('Error in approvePengajuan:', error);
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
+// Reject pengajuan
+export async function rejectPengajuan(req: AuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    const { rejection_reason } = req.body;
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Hanya admin yang bisa reject
+    if (user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only admin can reject pengajuan' });
+    }
+
+    if (!rejection_reason || rejection_reason.trim() === '') {
+      return res.status(400).json({ success: false, message: 'Rejection reason is required' });
+    }
+
+    const pengajuan = await Pengajuan.findByPk(id);
+    if (!pengajuan) {
+      return res.status(404).json({ success: false, message: 'Pengajuan not found' });
+    }
+
+    // Hanya pengajuan dengan status submitted yang bisa direject
+    if (pengajuan.status !== 'submitted') {
+      return res.status(400).json({ success: false, message: 'Only submitted pengajuan can be rejected' });
+    }
+
+    // Update pengajuan
+    await pengajuan.update({
+      status: 'rejected',
+      rejection_reason: rejection_reason.trim(),
+      rejected_by: user.email || user.id,
+      rejected_at: new Date()
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Pengajuan rejected successfully',
+      data: pengajuan
+    });
+  } catch (error) {
+    console.error('Error in rejectPengajuan:', error);
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
+// Resubmit pengajuan
+export async function resubmitPengajuan(req: AuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const pengajuan = await Pengajuan.findByPk(id);
+    if (!pengajuan) {
+      return res.status(404).json({ success: false, message: 'Pengajuan not found' });
+    }
+
+    // Hanya pengajuan dengan status rejected yang bisa diresubmit
+    if (pengajuan.status !== 'rejected') {
+      return res.status(400).json({ success: false, message: 'Only rejected pengajuan can be resubmitted' });
+    }
+
+    // Update pengajuan
+    await pengajuan.update({
+      status: 'resubmitted',
+      resubmitted_by: user.email || user.id,
+      resubmitted_at: new Date()
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Pengajuan resubmitted successfully',
+      data: pengajuan
+    });
+  } catch (error) {
+    console.error('Error in resubmitPengajuan:', error);
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
+// Delete pengajuan
+export async function deletePengajuan(req: AuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Hanya admin yang bisa delete
+    if (user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only admin can delete pengajuan' });
+    }
+
+    const pengajuan = await Pengajuan.findByPk(id);
+    if (!pengajuan) {
+      return res.status(404).json({ success: false, message: 'Pengajuan not found' });
+    }
+
+    // Delete pengajuan (akan cascade delete files juga)
+    await pengajuan.destroy();
+
+    res.json({ 
+      success: true, 
+      message: 'Pengajuan deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error in deletePengajuan:', error);
     res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
   }
 } 

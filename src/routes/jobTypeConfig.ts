@@ -152,7 +152,13 @@ router.get('/:id', authMiddleware, async (req, res) => {
       });
     }
     
-    res.json({ success: true, data: config });
+    // Parse required_files from string to array
+    const parsedConfig = {
+      ...config.toJSON(),
+      required_files: JSON.parse(config.required_files || '[]')
+    };
+    
+    res.json({ success: true, data: parsedConfig });
   } catch (error) {
     console.error('Error fetching job type config:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
