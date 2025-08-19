@@ -14,7 +14,8 @@ import {
   resubmitPengajuan,
   deletePengajuan,
   verifyFile,
-  generatePrintReport
+  generatePrintReport,
+  getFilterOptions
 } from '../controllers/pengajuanController';
 import { authMiddleware } from '../middleware/auth';
 
@@ -91,6 +92,7 @@ router.get('/files/:file_id', authMiddleware, async (req, res) => {
 });
 
 // Pengajuan routes - SETELAH FILE ROUTES
+router.get('/filter-options', authMiddleware, getFilterOptions);
 router.get('/:pengajuan_id', authMiddleware, getPengajuanDetail);
 router.get('/', authMiddleware, getAllPengajuan);
 

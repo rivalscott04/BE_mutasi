@@ -4,6 +4,7 @@ import PengajuanFile from '../models/PengajuanFile';
 import Pegawai from '../models/Pegawai';
 import Letter from '../models/Letter';
 import JobTypeConfiguration from '../models/JobTypeConfiguration';
+import User from '../models/User';
 import { Op } from 'sequelize';
 import { AuthRequest } from '../middleware/auth';
 
@@ -142,25 +143,40 @@ export async function createPengajuan(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'Pegawai tidak ditemukan' });
     }
 
-    // Count generated surat berdasarkan created_by user
-    const totalDokumen = await Letter.count({
-      where: { 
-        recipient_employee_nip: pegawai_nip,
-        created_by: user.id
-      }
-    });
-
-    if (totalDokumen === 0) {
-      return res.status(400).json({ success: false, message: 'Pegawai belum memiliki surat yang di-generate oleh Anda' });
-    }
-
-    // Use jenis_jabatan from request body if provided, otherwise determine based on surat count
+    // Get job type configuration untuk menentukan jumlah dokumen yang diperlukan
     let finalJenisJabatan = jenis_jabatan;
-    if (!finalJenisJabatan) {
-      if (totalDokumen >= 9) {
-        finalJenisJabatan = 'guru'; // Guru dengan surat lengkap (9+ surat)
+    let totalDokumen = 0;
+    
+    if (finalJenisJabatan) {
+      // Cari job type configuration berdasarkan jenis_jabatan
+      const jobTypeConfig = await JobTypeConfiguration.findOne({
+        where: { 
+          jenis_jabatan: finalJenisJabatan,
+          is_active: true 
+        }
+      });
+      
+      if (jobTypeConfig) {
+        totalDokumen = jobTypeConfig.max_dokumen || 0;
+        console.log('✅ Using job type config for:', finalJenisJabatan, 'with max_dokumen:', totalDokumen);
       } else {
-        finalJenisJabatan = 'fungsional'; // Fungsional dengan surat parsial (<9 surat)
+        return res.status(400).json({ success: false, message: `Konfigurasi jabatan "${finalJenisJabatan}" tidak ditemukan atau tidak aktif` });
+      }
+    } else {
+      // Jika jenis_jabatan tidak disediakan, gunakan default
+      finalJenisJabatan = 'fungsional';
+      const jobTypeConfig = await JobTypeConfiguration.findOne({
+        where: { 
+          jenis_jabatan: finalJenisJabatan,
+          is_active: true 
+        }
+      });
+      
+      if (jobTypeConfig) {
+        totalDokumen = jobTypeConfig.max_dokumen || 0;
+        console.log('✅ Using default job type config for:', finalJenisJabatan, 'with max_dokumen:', totalDokumen);
+      } else {
+        return res.status(400).json({ success: false, message: 'Konfigurasi jabatan default tidak ditemukan' });
       }
     }
 
@@ -374,10 +390,20 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
       requiredFiles = [];
     }
 
+    // Update total_dokumen berdasarkan job type configuration jika berbeda
+    let updatedTotalDokumen = pengajuan.total_dokumen;
+    if (jobTypeConfig && jobTypeConfig.max_dokumen !== pengajuan.total_dokumen) {
+      updatedTotalDokumen = jobTypeConfig.max_dokumen;
+      console.log('🔄 Updating total_dokumen from', pengajuan.total_dokumen, 'to', updatedTotalDokumen);
+    }
+
     res.json({ 
       success: true, 
       data: { 
-        pengajuan,
+        pengajuan: {
+          ...pengajuan.toJSON(),
+          total_dokumen: updatedTotalDokumen
+        },
         requiredFiles,
         jobTypeConfig: jobTypeConfig ? {
           id: jobTypeConfig.id,
@@ -397,7 +423,7 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
 // Get all pengajuan
 export async function getAllPengajuan(req: AuthRequest, res: Response) {
   try {
-    const { status, page = 1, limit = 10 } = req.query;
+    const { status, page = 1, limit = 10, created_by } = req.query;
     const user = req.user;
     
     if (!user) {
@@ -414,6 +440,11 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       where.office_id = user.office_id;
     }
 
+    // Filter berdasarkan created_by (siapa yang membuat)
+    if (created_by) {
+      where.created_by = created_by;
+    }
+
     const offset = (Number(page) - 1) * Number(limit);
 
     const pengajuan = await Pengajuan.findAndCountAll({
@@ -427,9 +458,31 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       offset
     });
 
+    // Update total_dokumen untuk setiap pengajuan berdasarkan job type configuration
+    const updatedPengajuanRows = await Promise.all(
+      pengajuan.rows.map(async (row) => {
+        const jobTypeConfig = await JobTypeConfiguration.findOne({
+          where: { 
+            jenis_jabatan: row.jenis_jabatan,
+            is_active: true 
+          }
+        });
+        
+        let updatedTotalDokumen = row.total_dokumen;
+        if (jobTypeConfig && jobTypeConfig.max_dokumen !== row.total_dokumen) {
+          updatedTotalDokumen = jobTypeConfig.max_dokumen;
+        }
+        
+        return {
+          ...row.toJSON(),
+          total_dokumen: updatedTotalDokumen
+        };
+      })
+    );
+
     res.json({ 
       success: true, 
-      data: pengajuan.rows,
+      data: updatedPengajuanRows,
       pagination: {
         total: pengajuan.count,
         page: Number(page),
@@ -665,6 +718,49 @@ export async function verifyFile(req: AuthRequest, res: Response) {
     });
   } catch (error) {
     console.error('Error in verifyFile:', error);
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
+// Get filter options for admin
+export async function getFilterOptions(req: AuthRequest, res: Response) {
+  try {
+    const user = req.user;
+    
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Hanya admin yang bisa akses filter options
+    if (user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only admin can access filter options' });
+    }
+
+    // Get unique created_by from pengajuan
+    const createdByUsers = await Pengajuan.findAll({
+      attributes: ['created_by'],
+      group: ['created_by'],
+      raw: true
+    });
+
+                            // Get user details for created_by
+                        const userIds = createdByUsers.map(u => u.created_by).filter(Boolean);
+                        const users = await User.findAll({
+                          where: { id: { [Op.in]: userIds } },
+                          attributes: ['id', 'email', 'full_name'],
+                          raw: true
+                        });
+
+                        console.log('🔍 Debug getFilterOptions - Users found:', users);
+
+    res.json({
+      success: true,
+      data: {
+        users: users
+      }
+    });
+  } catch (error) {
+    console.error('Error in getFilterOptions:', error);
     res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
   }
 }
