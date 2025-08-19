@@ -64,7 +64,7 @@ router.put('/:id/resubmit', authMiddleware, resubmitPengajuan);
 router.delete('/:id', authMiddleware, deletePengajuan);
 
 // Download file endpoint
-router.get('/files/:file_id', async (req, res) => {
+router.get('/files/:file_id', authMiddleware, async (req, res) => {
   try {
     const { file_id } = req.params;
     const PengajuanFile = require('../models/PengajuanFile').default;
