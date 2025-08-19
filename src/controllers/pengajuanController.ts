@@ -590,17 +590,28 @@ export async function deletePengajuan(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'Pengajuan not found' });
     }
 
-    // Admin bisa hapus semua pengajuan, user biasa hanya bisa hapus draft
+    console.log('🔍 Debug deletePengajuan:', {
+      pengajuanId: id,
+      pengajuanStatus: pengajuan.status,
+      userRole: user.role,
+      userOfficeId: user.office_id,
+      pengajuanOfficeId: pengajuan.office_id
+    });
+
+    // Admin bisa hapus semua pengajuan dengan status apapun
     if (user.role !== 'admin') {
       // User biasa hanya bisa hapus pengajuan dengan status draft
       if (pengajuan.status !== 'draft') {
-        return res.status(403).json({ success: false, message: 'Only draft pengajuan can be deleted by non-admin users' });
+        return res.status(400).json({ success: false, message: 'Only draft pengajuan can be deleted by non-admin users' });
       }
       
       // User biasa hanya bisa hapus pengajuan dari office yang sama
       if (pengajuan.office_id !== user.office_id) {
-        return res.status(403).json({ success: false, message: 'You can only delete pengajuan from your office' });
+        return res.status(400).json({ success: false, message: 'You can only delete pengajuan from your office' });
       }
+    } else {
+      // Admin bisa hapus semua pengajuan dengan status apapun tanpa batasan office
+      console.log('✅ Admin deleting pengajuan with status:', pengajuan.status);
     }
 
     // Delete pengajuan (akan cascade delete files juga)
