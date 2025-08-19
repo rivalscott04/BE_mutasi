@@ -15,17 +15,17 @@ export async function getPegawaiById(req: Request, res: Response) {
 }
 
 export async function createPegawai(req: Request, res: Response) {
-  const { nip, nama, golongan, tmt_pensiun, unit_kerja, induk_unit, jabatan, office_id, jenis_pegawai, aktif } = req.body;
+  const { nip, nama, golongan, tmt_pensiun, unit_kerja, induk_unit, jabatan, kantor_id, jenis_pegawai, aktif } = req.body;
   if (!nip || !nama) {
     return res.status(400).json({ message: 'Missing required fields' });
   }
-  const pegawai = await Pegawai.create({ nip, nama, golongan, tmt_pensiun, unit_kerja, induk_unit, jabatan, office_id, jenis_pegawai, aktif });
+  const pegawai = await Pegawai.create({ nip, nama, golongan, tmt_pensiun, unit_kerja, induk_unit, jabatan, kantor_id, jenis_pegawai, aktif });
   res.status(201).json({ pegawai });
 }
 
 export async function updatePegawai(req: Request, res: Response) {
   const { id } = req.params;
-  const { nama, golongan, tmt_pensiun, unit_kerja, induk_unit, jabatan, office_id, jenis_pegawai, aktif } = req.body;
+  const { nama, golongan, tmt_pensiun, unit_kerja, induk_unit, jabatan, kantor_id, jenis_pegawai, aktif } = req.body;
   const pegawai = await Pegawai.findOne({ where: { nip: id } });
   if (!pegawai) return res.status(404).json({ message: 'Pegawai not found' });
   if (nama) pegawai.nama = nama;
@@ -34,7 +34,7 @@ export async function updatePegawai(req: Request, res: Response) {
   if (unit_kerja) pegawai.unit_kerja = unit_kerja;
   if (induk_unit) pegawai.induk_unit = induk_unit;
   if (jabatan) pegawai.jabatan = jabatan;
-  if (office_id) pegawai.office_id = office_id;
+  if (kantor_id) pegawai.kantor_id = kantor_id;
   if (jenis_pegawai) pegawai.jenis_pegawai = jenis_pegawai;
   if (typeof aktif === 'boolean') pegawai.aktif = aktif;
   await pegawai.save();

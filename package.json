@@ -9,8 +9,7 @@
     "db:seed": "ts-node src/scripts/seed-job-types.ts",
     "db:migrate": "ts-node src/scripts/migrate-pengajuan.ts",
     "db:run-migration": "ts-node src/scripts/run-migration.ts",
-
-
+    "db:missing-tables": "ts-node src/scripts/run-missing-tables-migration.ts",
     "db:setup": "ts-node src/scripts/setup-database.ts",
     "db:add-fk": "ts-node src/scripts/add-foreign-keys.ts",
     "db:check-fk": "ts-node src/scripts/check-foreign-keys.ts",
@@ -42,6 +41,7 @@
     "@types/jsonwebtoken": "^8.5.9",
     "@types/multer": "^2.0.0",
     "@types/node": "^24.1.0",
+    "@types/sequelize": "^4.28.20",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }
