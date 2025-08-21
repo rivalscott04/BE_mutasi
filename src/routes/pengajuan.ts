@@ -19,6 +19,7 @@ import {
   updatePengajuanFiles
 } from '../controllers/pengajuanController';
 import { authMiddleware } from '../middleware/auth';
+import logger from '../utils/logger';
 
 const router = express.Router();
 
@@ -42,9 +43,25 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage,
   fileFilter: (req, file, cb) => {
+    logger.info('File upload filter check', {
+      fileName: file.originalname,
+      mimeType: file.mimetype,
+      fieldName: file.fieldname,
+      size: file.size,
+      ip: req.ip,
+      userId: (req as any).user?.id
+    });
+
     if (file.mimetype === 'application/pdf') {
       cb(null, true);
     } else {
+      logger.error('File rejected - not PDF', {
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        ip: req.ip,
+        userId: (req as any).user?.id
+      });
       cb(new Error('Only PDF files are allowed'));
     }
   },
@@ -53,13 +70,64 @@ const upload = multer({
   }
 });
 
+// Error handling middleware for multer
+const handleMulterError = (err: any, req: any, res: any, next: any) => {
+  if (err instanceof multer.MulterError) {
+    logger.error('Multer error occurred', {
+      error: err.message,
+      code: err.code,
+      field: err.field,
+      fileName: req.file?.originalname,
+      fileSize: req.file?.size,
+      ip: req.ip,
+      userId: req.user?.id
+    });
+
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'File terlalu besar. Maksimal 500KB per file.' 
+      });
+    }
+    
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Terlalu banyak file yang diupload.' 
+      });
+    }
+
+    return res.status(400).json({ 
+      success: false, 
+      message: `Upload error: ${err.message}` 
+    });
+  }
+
+  if (err) {
+    logger.error('File upload error', {
+      error: err.message,
+      fileName: req.file?.originalname,
+      fileSize: req.file?.size,
+      ip: req.ip,
+      userId: req.user?.id
+    });
+
+    return res.status(400).json({ 
+      success: false, 
+      message: err.message || 'File upload failed' 
+    });
+  }
+
+  next();
+};
+
 // Routes
 router.get('/pegawai-grouped', authMiddleware, getPegawaiGroupedByKabupaten);
 router.post('/', authMiddleware, createPengajuan);
-router.post('/:pengajuan_id/upload', authMiddleware, upload.single('file'), uploadPengajuanFile);
+router.post('/:pengajuan_id/upload', authMiddleware, upload.single('file'), handleMulterError, uploadPengajuanFile);
 router.put('/:pengajuan_id/submit', authMiddleware, submitPengajuan);
 // Update multiple files (FormData: files[], file_types[])
-router.put('/:pengajuan_id/update-files', authMiddleware, upload.array('files'), updatePengajuanFiles);
+router.put('/:pengajuan_id/update-files', authMiddleware, upload.array('files'), handleMulterError, updatePengajuanFiles);
 
 // File verification routes - HARUS SEBELUM ROUTE DENGAN PARAMETER
 router.put('/files/:file_id/verify', authMiddleware, verifyFile);

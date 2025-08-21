@@ -7,6 +7,7 @@ import JobTypeConfiguration from '../models/JobTypeConfiguration';
 import User from '../models/User';
 import { Op } from 'sequelize';
 import { AuthRequest } from '../middleware/auth';
+import logger from '../utils/logger';
 
 // Get pegawai grouped by kabupaten with surat generated
 export async function getPegawaiGroupedByKabupaten(req: AuthRequest, res: Response) {
@@ -202,18 +203,57 @@ export async function uploadPengajuanFile(req: AuthRequest, res: Response) {
     const { pengajuan_id } = req.params;
     const { file_type } = req.body;
     const file = req.file as any;
+    const user = req.user;
+
+    logger.info('File upload attempt', {
+      pengajuanId: pengajuan_id,
+      fileType: file_type,
+      userId: user?.id,
+      userEmail: user?.email,
+      ip: req.ip
+    });
 
     if (!file) {
+      logger.error('File upload failed - no file provided', {
+        pengajuanId: pengajuan_id,
+        fileType: file_type,
+        userId: user?.id,
+        ip: req.ip
+      });
       return res.status(400).json({ success: false, message: 'File tidak ditemukan' });
     }
 
     if (!file_type) {
+      logger.error('File upload failed - no file type provided', {
+        pengajuanId: pengajuan_id,
+        fileName: file.originalname,
+        fileSize: file.size,
+        userId: user?.id,
+        ip: req.ip
+      });
       return res.status(400).json({ success: false, message: 'File type tidak ditemukan' });
     }
+
+    logger.info('File details received', {
+      pengajuanId: pengajuan_id,
+      fileType: file_type,
+      fileName: file.originalname,
+      fileSize: file.size,
+      mimeType: file.mimetype,
+      filePath: file.path,
+      userId: user?.id
+    });
 
     // Check if pengajuan exists
     const pengajuan = await Pengajuan.findByPk(pengajuan_id);
     if (!pengajuan) {
+      logger.error('File upload failed - pengajuan not found', {
+        pengajuanId: pengajuan_id,
+        fileType: file_type,
+        fileName: file.originalname,
+        userId: user?.id,
+        ip: req.ip
+      });
       return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
     }
 
@@ -223,6 +263,16 @@ export async function uploadPengajuanFile(req: AuthRequest, res: Response) {
     });
 
     if (existingFile) {
+      logger.info('Updating existing file', {
+        pengajuanId: pengajuan_id,
+        fileType: file_type,
+        oldFileName: existingFile.file_name,
+        newFileName: file.originalname,
+        oldFileSize: existingFile.file_size,
+        newFileSize: file.size,
+        userId: user?.id
+      });
+
       // Update existing file
       await existingFile.update({
         file_name: file.originalname,
@@ -230,6 +280,14 @@ export async function uploadPengajuanFile(req: AuthRequest, res: Response) {
         file_size: file.size
       });
     } else {
+      logger.info('Creating new file record', {
+        pengajuanId: pengajuan_id,
+        fileType: file_type,
+        fileName: file.originalname,
+        fileSize: file.size,
+        userId: user?.id
+      });
+
       // Create new file
       await PengajuanFile.create({
         pengajuan_id,
@@ -240,8 +298,28 @@ export async function uploadPengajuanFile(req: AuthRequest, res: Response) {
       });
     }
 
+    logger.info('File upload completed successfully', {
+      pengajuanId: pengajuan_id,
+      fileType: file_type,
+      fileName: file.originalname,
+      fileSize: file.size,
+      userId: user?.id,
+      ip: req.ip
+    });
+
     res.json({ success: true, message: 'File berhasil diupload' });
   } catch (error) {
+    logger.error('File upload failed with error', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      pengajuanId: req.params.pengajuan_id,
+      fileType: req.body.file_type,
+      fileName: req.file?.originalname,
+      fileSize: req.file?.size,
+      userId: req.user?.id,
+      ip: req.ip
+    });
+
     console.error('Error in uploadPengajuanFile:', error);
     res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
   }
@@ -253,27 +331,90 @@ export async function updatePengajuanFiles(req: AuthRequest, res: Response) {
     const { pengajuan_id } = req.params as any;
     const files = (req as any).files as Express.Multer.File[] | undefined;
     let { file_types } = req.body as { file_types?: string | string[] };
+    const user = req.user;
+
+    logger.info('Multiple file upload attempt', {
+      pengajuanId: pengajuan_id,
+      filesCount: files?.length || 0,
+      fileTypes: file_types,
+      userId: user?.id,
+      userEmail: user?.email,
+      ip: req.ip
+    });
 
     if (!files || files.length === 0) {
+      logger.warn('Multiple file upload failed - no files provided', {
+        pengajuanId: pengajuan_id,
+        userId: user?.id,
+        ip: req.ip
+      });
       return res.status(400).json({ success: false, message: 'Tidak ada file yang diunggah' });
     }
 
     // Normalisasi file_types menjadi array paralel dengan files
     if (!file_types) {
+      logger.warn('Multiple file upload failed - no file types provided', {
+        pengajuanId: pengajuan_id,
+        filesCount: files.length,
+        userId: user?.id,
+        ip: req.ip
+      });
       return res.status(400).json({ success: false, message: 'file_types diperlukan' });
     }
     if (!Array.isArray(file_types)) {
       file_types = [file_types];
     }
     if (file_types.length !== files.length) {
+      logger.warn('Multiple file upload failed - file types count mismatch', {
+        pengajuanId: pengajuan_id,
+        filesCount: files.length,
+        fileTypesCount: file_types.length,
+        userId: user?.id,
+        ip: req.ip
+      });
       return res.status(400).json({ success: false, message: 'Jumlah file_types tidak sesuai dengan jumlah files' });
     }
+
+    logger.info('File validation passed', {
+      pengajuanId: pengajuan_id,
+      filesCount: files.length,
+      fileTypes: file_types,
+      userId: user?.id
+    });
+
+    // Log details of each file
+    files.forEach((file, index) => {
+      logger.info(`File ${index + 1} details`, {
+        pengajuanId: pengajuan_id,
+        fileIndex: index + 1,
+        fileType: file_types[index],
+        fileName: file.originalname,
+        fileSize: file.size,
+        mimeType: file.mimetype,
+        filePath: file.path,
+        userId: user?.id
+      });
+    });
 
     // Pastikan pengajuan ada
     const pengajuan = await Pengajuan.findByPk(pengajuan_id);
     if (!pengajuan) {
+      logger.error('Multiple file upload failed - pengajuan not found', {
+        pengajuanId: pengajuan_id,
+        filesCount: files.length,
+        userId: user?.id,
+        ip: req.ip
+      });
       return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
     }
+
+    logger.info('Pengajuan found for multiple file upload', {
+      pengajuanId: pengajuan_id,
+      pengajuanStatus: pengajuan.status,
+      pegawaiNip: pengajuan.pegawai_nip,
+      jenisJabatan: pengajuan.jenis_jabatan,
+      filesCount: files.length
+    });
 
     // Untuk setiap file yang diunggah, update atau buat record dan reset status verifikasi ke pending
     const updatedFiles = [] as any[];
@@ -281,8 +422,27 @@ export async function updatePengajuanFiles(req: AuthRequest, res: Response) {
       const f = files[i];
       const type = file_types[i];
 
+      logger.info(`Processing file ${i + 1}/${files.length}`, {
+        pengajuanId: pengajuan_id,
+        fileIndex: i + 1,
+        fileType: type,
+        fileName: f.originalname,
+        fileSize: f.size,
+        userId: user?.id
+      });
+
       const existing = await PengajuanFile.findOne({ where: { pengajuan_id, file_type: type } });
       if (existing) {
+        logger.info(`Updating existing file ${i + 1}`, {
+          pengajuanId: pengajuan_id,
+          fileType: type,
+          oldFileName: existing.file_name,
+          newFileName: f.originalname,
+          oldFileSize: existing.file_size,
+          newFileSize: f.size,
+          userId: user?.id
+        });
+
         await existing.update({
           file_name: f.originalname,
           file_path: f.path,
@@ -294,7 +454,23 @@ export async function updatePengajuanFiles(req: AuthRequest, res: Response) {
           verified_at: null as any,
         } as any);
         updatedFiles.push(existing);
+
+        logger.info(`File ${i + 1} updated successfully`, {
+          pengajuanId: pengajuan_id,
+          fileType: type,
+          fileName: f.originalname,
+          fileSize: f.size,
+          userId: user?.id
+        });
       } else {
+        logger.info(`Creating new file record ${i + 1}`, {
+          pengajuanId: pengajuan_id,
+          fileType: type,
+          fileName: f.originalname,
+          fileSize: f.size,
+          userId: user?.id
+        });
+
         const created = await PengajuanFile.create({
           pengajuan_id,
           file_type: type,
@@ -305,11 +481,37 @@ export async function updatePengajuanFiles(req: AuthRequest, res: Response) {
           verification_status: 'pending',
         } as any);
         updatedFiles.push(created);
+
+        logger.info(`File ${i + 1} created successfully`, {
+          pengajuanId: pengajuan_id,
+          fileType: type,
+          fileName: f.originalname,
+          fileSize: f.size,
+          userId: user?.id
+        });
       }
     }
 
+    logger.info('Multiple file upload completed successfully', {
+      pengajuanId: pengajuan_id,
+      filesCount: files.length,
+      updatedFilesCount: updatedFiles.length,
+      userId: user?.id,
+      ip: req.ip
+    });
+
     return res.json({ success: true, message: 'Dokumen berhasil diperbarui', data: { files: updatedFiles } });
   } catch (error) {
+    logger.error('Multiple file upload failed with error', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      pengajuanId: req.params.pengajuan_id,
+      filesCount: (req as any).files?.length || 0,
+      fileTypes: req.body.file_types,
+      userId: req.user?.id,
+      ip: req.ip
+    });
+
     console.error('Error in updatePengajuanFiles:', error);
     return res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
   }

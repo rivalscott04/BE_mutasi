@@ -12,6 +12,7 @@ import jobTypeConfigRouter from './routes/jobTypeConfig';
 import { sessionMiddleware, trackImpersonation } from './middleware/sessionManager';
 import { bypassOfficeFilterForAdmin } from './middleware/adminAccess';
 import { authMiddleware } from './middleware/auth';
+import logger from './utils/logger';
 
 const app = express();
 
@@ -61,12 +62,20 @@ app.use('/api/job-type-configurations', authMiddleware, bypassOfficeFilterForAdm
 
 // Health check
 app.get('/api/health', (req, res) => {
+  logger.info('Health check requested', { ip: req.ip });
   res.json({ status: 'ok' });
 });
 
 // Error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('❌ Server Error:', err);
+  logger.error('Server Error', {
+    error: err.message,
+    stack: err.stack,
+    url: req.url,
+    method: req.method,
+    userId: req.user?.id || 'anonymous',
+    ip: req.ip
+  });
   
   if (err.type === 'entity.parse.failed') {
     return res.status(400).json({ 
