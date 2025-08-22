@@ -3,14 +3,13 @@ import bcrypt from 'bcrypt';
 import User from '../models/User';
 import Office from '../models/Office';
 import { generateToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt';
-import { authLogger, apiLogger } from '../utils/logger';
-import { redactSensitiveData } from '../utils/logConfig';
+import logger from '../utils/logger';
 
 export async function login(req: Request, res: Response) {
   try {
     const { email, password } = req.body;
     
-    authLogger.info('Login attempt', {
+    logger.info('Login attempt', {
       email,
       ip: req.ip,
       userAgent: req.get('User-Agent')
@@ -19,7 +18,7 @@ export async function login(req: Request, res: Response) {
     const user = await User.findOne({ where: { email } });
     
     if (!user) {
-      authLogger.warn('Login failed - user not found', {
+      logger.warn('Login failed - user not found', {
         email,
         ip: req.ip
       });
@@ -29,7 +28,7 @@ export async function login(req: Request, res: Response) {
     const isValid = await bcrypt.compare(password, user.password_hash);
     
     if (!isValid) {
-      authLogger.warn('Login failed - invalid password', {
+      logger.warn('Login failed - invalid password', {
         email,
         ip: req.ip,
         userId: user.id
@@ -63,7 +62,7 @@ export async function login(req: Request, res: Response) {
       office_id: user.office_id 
     };
     
-    authLogger.info('Login successful', {
+    logger.info('Login successful', {
       userId: user.id,
       email: user.email,
       role: user.role,
@@ -73,7 +72,7 @@ export async function login(req: Request, res: Response) {
     
     res.json({ token, user: userInfo });
   } catch (error) {
-    authLogger.error('Login error', {
+    logger.error('Login error', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
       email: req.body.email,
@@ -92,7 +91,7 @@ export async function me(req: any, res: Response) {
       kabkota = office?.kabkota;
     }
     
-    authLogger.info('User profile accessed', {
+    logger.info('User profile accessed', {
       userId: user.id,
       email: user.email,
       role: user.role,
@@ -101,7 +100,7 @@ export async function me(req: any, res: Response) {
     
     res.json({ user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role, office_id: user.office_id, kabkota } });
   } catch (error) {
-    authLogger.error('Error fetching user profile', {
+    logger.error('Error fetching user profile', {
       error: error instanceof Error ? error.message : 'Unknown error',
       userId: req.user?.id,
       ip: req.ip
@@ -114,7 +113,7 @@ export async function impersonate(req: any, res: Response) {
   try {
     const { userId } = req.body;
     
-    authLogger.info('Impersonation attempt', {
+    logger.info('Impersonation attempt', {
       adminId: req.user?.id,
       adminEmail: req.user?.email,
       targetUserId: userId,
@@ -123,7 +122,7 @@ export async function impersonate(req: any, res: Response) {
     
     // Pastikan hanya admin kanwil yang bisa impersonate
     if (!req.user || req.user.role !== 'admin' || req.user.office_id !== null) {
-      authLogger.warn('Impersonation denied - insufficient privileges', {
+      logger.warn('Impersonation denied - insufficient privileges', {
         adminId: req.user?.id,
         adminRole: req.user?.role,
         adminOfficeId: req.user?.office_id,
@@ -135,7 +134,7 @@ export async function impersonate(req: any, res: Response) {
     
     const user = await User.findByPk(userId);
     if (!user) {
-      authLogger.warn('Impersonation failed - target user not found', {
+      logger.warn('Impersonation failed - target user not found', {
         adminId: req.user.id,
         targetUserId: userId,
         ip: req.ip
@@ -159,7 +158,7 @@ export async function impersonate(req: any, res: Response) {
     
     const token = generateToken(payload);
     
-    authLogger.info('Impersonation successful', {
+    logger.info('Impersonation successful', {
       adminId: req.user.id,
       targetUserId: user.id,
       targetEmail: user.email,
@@ -185,7 +184,7 @@ export async function impersonate(req: any, res: Response) {
       }
     });
   } catch (error) {
-    authLogger.error('Impersonation error', {
+    logger.error('Impersonation error', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
       adminId: req.user?.id,
@@ -262,7 +261,11 @@ export async function refreshToken(req: Request, res: Response) {
     
     res.json({ token: newToken, user: userInfo });
   } catch (error) {
-    console.error('Refresh token error:', error);
+    logger.error('Refresh token error', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      ip: req.ip
+    });
     return res.status(401).json({ message: 'Invalid refresh token' });
   }
 }
