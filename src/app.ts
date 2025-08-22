@@ -9,6 +9,7 @@ import lettersRouter from './routes/letters';
 import filesRouter from './routes/files';
 import pengajuanRouter from './routes/pengajuan';
 import jobTypeConfigRouter from './routes/jobTypeConfig';
+import publicRouter from './routes/public';
 import { sessionMiddleware, trackImpersonation } from './middleware/sessionManager';
 import { bypassOfficeFilterForAdmin } from './middleware/adminAccess';
 import { authMiddleware } from './middleware/auth';
@@ -51,6 +52,9 @@ app.use(trackImpersonation);
 
 app.use('/api/auth', authRouter);
 
+// Public routes (no authentication required)
+app.use('/api/public', publicRouter);
+
 // Routes with their own authMiddleware + admin access control
 app.use('/api/users', authMiddleware, bypassOfficeFilterForAdmin, usersRouter);
 app.use('/api/offices', authMiddleware, bypassOfficeFilterForAdmin, officesRouter);
@@ -73,7 +77,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     stack: err.stack,
     url: req.url,
     method: req.method,
-    userId: req.user?.id || 'anonymous',
+    userId: (req as any).user?.id || 'anonymous',
     ip: req.ip
   });
   
