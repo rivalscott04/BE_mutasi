@@ -72,12 +72,17 @@ export async function login(req: Request, res: Response) {
     
     res.json({ token, user: userInfo });
   } catch (error) {
+    // Enhanced error handling to prevent crashes
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('Login error', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      email: req.body.email,
-      ip: req.ip
+      error: errorMessage,
+      stack: errorStack,
+      email: req.body?.email || 'unknown',
+      ip: req.ip || 'unknown'
     });
+    
     res.status(500).json({ message: 'Internal server error' });
   }
 }
@@ -100,10 +105,14 @@ export async function me(req: any, res: Response) {
     
     res.json({ user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role, office_id: user.office_id, kabkota } });
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('Error fetching user profile', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      userId: req.user?.id,
-      ip: req.ip
+      error: errorMessage,
+      stack: errorStack,
+      userId: req.user?.id || 'unknown',
+      ip: req.ip || 'unknown'
     });
     res.status(500).json({ message: 'Internal server error' });
   }
@@ -184,12 +193,15 @@ export async function impersonate(req: any, res: Response) {
       }
     });
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('Impersonation error', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      adminId: req.user?.id,
-      targetUserId: req.body.userId,
-      ip: req.ip
+      error: errorMessage,
+      stack: errorStack,
+      adminId: req.user?.id || 'unknown',
+      targetUserId: req.body?.userId || 'unknown',
+      ip: req.ip || 'unknown'
     });
     res.status(500).json({ message: 'Internal server error' });
   }
@@ -261,10 +273,13 @@ export async function refreshToken(req: Request, res: Response) {
     
     res.json({ token: newToken, user: userInfo });
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('Refresh token error', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      ip: req.ip
+      error: errorMessage,
+      stack: errorStack,
+      ip: req.ip || 'unknown'
     });
     return res.status(401).json({ message: 'Invalid refresh token' });
   }
