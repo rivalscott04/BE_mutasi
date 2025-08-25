@@ -40,7 +40,7 @@ export const getAllPegawaiPublic = async (req: Request, res: Response) => {
       ],
       attributes: [
         'id', 'nama', 'nip', 'jabatan', 'golongan', 'tmt_pensiun',
-        'unit_kerja', 'kantor_id', 'dibuat_pada', 'diubah_pada'
+        'unit_kerja', 'induk_unit', 'kantor_id', 'dibuat_pada', 'diubah_pada'
       ],
       limit,
       offset,
@@ -116,7 +116,7 @@ export const getAllPegawaiPublicSimple = async (req: Request, res: Response) => 
       ],
       attributes: [
         'id', 'nama', 'nip', 'jabatan', 'golongan', 'tmt_pensiun',
-        'unit_kerja', 'kantor_id', 'dibuat_pada', 'diubah_pada'
+        'unit_kerja', 'induk_unit', 'kantor_id', 'dibuat_pada', 'diubah_pada'
       ],
       order: [['nama', 'ASC']]
     });
