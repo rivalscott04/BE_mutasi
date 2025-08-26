@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import Letter from '../models/Letter';
 import LetterFile from '../models/LetterFile';
 import Pegawai from '../models/Pegawai';
+import Office from '../models/Office';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import fs from 'fs';
 import path from 'path';
@@ -14,10 +15,22 @@ function writeLog(message: string) {
 }
 
 export async function getAllLetters(req: Request, res: Response) {
+  const user = (req as any).user;
+  
+  // Build where clause based on user role and office
+  let whereClause: any = {};
+  
+  // If user is not admin and has office_id, filter by office
+  if (user.role !== 'admin' && user.office_id) {
+    whereClause.office_id = user.office_id;
+  }
+  
   const letters = await Letter.findAll({
+    where: whereClause,
     include: [
       { model: Pegawai, as: 'recipient', attributes: ['nip', 'nama'], required: false },
-      { model: Pegawai, as: 'signing_official', attributes: ['nip', 'nama'] }
+      { model: Pegawai, as: 'signing_official', attributes: ['nip', 'nama'] },
+      { model: Office, as: 'office', attributes: ['id', 'name', 'kabkota'] }
     ]
   });
   res.json({ letters });
@@ -25,18 +38,38 @@ export async function getAllLetters(req: Request, res: Response) {
 
 export async function getLetterById(req: Request, res: Response) {
   const { id } = req.params;
+  const user = (req as any).user;
+  
   const letter = await Letter.findByPk(id, {
     include: [
       { model: Pegawai, as: 'recipient', attributes: ['nip', 'nama'] },
-      { model: Pegawai, as: 'signing_official', attributes: ['nip', 'nama'] }
+      { model: Pegawai, as: 'signing_official', attributes: ['nip', 'nama'] },
+      { model: Office, as: 'office', attributes: ['id', 'name', 'kabkota'] }
     ]
   });
+  
   if (!letter) return res.status(404).json({ message: 'Letter not found' });
+  
+  // Check if user can access this letter
+  if (user.role !== 'admin' && user.office_id && letter.office_id !== user.office_id) {
+    return res.status(403).json({ 
+      message: 'Anda tidak memiliki izin untuk melihat surat ini. Hanya surat dari kantor Anda yang dapat diakses.' 
+    });
+  }
+  
   res.json({ letter });
 }
 
 export async function createLetter(req: Request, res: Response) {
   const { office_id, created_by, template_id, template_name, letter_number, subject, recipient_employee_nip, signing_official_nip, form_data, status } = req.body;
+  const user = (req as any).user;
+  
+  // Validate that user can only create letters for their own office (unless admin)
+  if (user.role !== 'admin' && user.office_id && office_id !== user.office_id) {
+    return res.status(403).json({ 
+      message: 'Anda tidak memiliki izin untuk membuat surat untuk kantor lain. Hanya surat untuk kantor Anda yang dapat dibuat.' 
+    });
+  }
   
   // Debug logging for Template 2
   if (template_id === 2) {
@@ -147,6 +180,7 @@ export async function updateLetter(req: Request, res: Response) {
   const { id } = req.params;
   const userId = (req as any).user?.id;
   const userRole = (req as any).user?.role;
+  const userOfficeId = (req as any).user?.office_id;
 
   try {
     const letter = await Letter.findByPk(id);
@@ -159,6 +193,13 @@ export async function updateLetter(req: Request, res: Response) {
     if (!canUpdate) {
       return res.status(403).json({
         message: 'Anda tidak memiliki izin untuk mengubah surat ini. Hanya pembuat surat atau admin yang dapat mengubah.'
+      });
+    }
+    
+    // Additional check: user can only update letters from their own office (unless admin)
+    if (userRole !== 'admin' && userOfficeId && letter.office_id !== userOfficeId) {
+      return res.status(403).json({
+        message: 'Anda tidak memiliki izin untuk mengubah surat ini. Hanya surat dari kantor Anda yang dapat diubah.'
       });
     }
 
@@ -183,6 +224,7 @@ export async function deleteLetter(req: Request, res: Response) {
   const { id } = req.params;
   const userId = (req as any).user?.id; // Get user ID from auth middleware
   const userRole = (req as any).user?.role; // Get user role from auth middleware
+  const userOfficeId = (req as any).user?.office_id; // Get user office ID from auth middleware
   
   const letter = await Letter.findByPk(id, {
     include: [{ model: LetterFile, as: 'files' }]
@@ -198,6 +240,17 @@ export async function deleteLetter(req: Request, res: Response) {
     writeLog('=== END DELETE PERMISSION DENIED ===');
     return res.status(403).json({ 
       message: 'Anda tidak memiliki izin untuk menghapus surat ini. Hanya pembuat surat atau admin yang dapat menghapus.' 
+    });
+  }
+  
+  // Additional check: user can only delete letters from their own office (unless admin)
+  if (userRole !== 'admin' && userOfficeId && letter.office_id !== userOfficeId) {
+    writeLog('=== DELETE OFFICE PERMISSION DENIED ===');
+    writeLog(`User ID: ${userId}, Role: ${userRole}, Office ID: ${userOfficeId}`);
+    writeLog(`Letter Office ID: ${letter.office_id}`);
+    writeLog('=== END DELETE OFFICE PERMISSION DENIED ===');
+    return res.status(403).json({ 
+      message: 'Anda tidak memiliki izin untuk menghapus surat ini. Hanya surat dari kantor Anda yang dapat dihapus.' 
     });
   }
   
@@ -227,8 +280,17 @@ export async function deleteLetter(req: Request, res: Response) {
 
 export async function generatePdfLetter(req: Request, res: Response) {
   const { id } = req.params;
+  const user = (req as any).user;
+  
   const letter = await Letter.findByPk(id);
   if (!letter) return res.status(404).json({ message: 'Letter not found' });
+  
+  // Check if user can access this letter
+  if (user.role !== 'admin' && user.office_id && letter.office_id !== user.office_id) {
+    return res.status(403).json({ 
+      message: 'Anda tidak memiliki izin untuk mengakses surat ini. Hanya surat dari kantor Anda yang dapat diakses.' 
+    });
+  }
 
   // 1. Generate PDF
   const pdfDoc = await PDFDocument.create();
