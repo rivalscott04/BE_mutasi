@@ -5,6 +5,7 @@ import Pegawai from '../models/Pegawai';
 import Letter from '../models/Letter';
 import JobTypeConfiguration from '../models/JobTypeConfiguration';
 import User from '../models/User';
+import Office from '../models/Office';
 import { Op } from 'sequelize';
 import { AuthRequest } from '../middleware/auth';
 import logger from '../utils/logger';
@@ -39,14 +40,14 @@ export async function getPegawaiGroupedByKabupaten(req: AuthRequest, res: Respon
     });
     console.log('Sample letters by user:', sampleLettersByUser.map(l => l.toJSON()));
 
-    // Build where clause untuk letters berdasarkan created_by user
+    // Build where clause untuk letters berdasarkan office/user
     const letterWhereClause: any = {
       recipient_employee_nip: { [Op.not]: '' }
     };
 
-    // Filter letters berdasarkan created_by user (kecuali admin yang bisa lihat semua)
-    if (user.role !== 'admin') {
-      letterWhereClause.created_by = user.id;
+    // Filter letters berdasarkan office (kecuali admin yang bisa lihat semua)
+    if (user.role !== 'admin' && user.office_id) {
+      letterWhereClause.office_id = user.office_id;
     }
 
     console.log('Letter where clause:', JSON.stringify(letterWhereClause, null, 2));
@@ -181,13 +182,20 @@ export async function createPengajuan(req: AuthRequest, res: Response) {
       }
     }
 
-    // Create pengajuan
+    // Validasi kantor untuk non-admin
+    if (user.role !== 'admin') {
+      if (!user.office_id) {
+        return res.status(400).json({ success: false, message: 'Akun Anda tidak terhubung ke kantor manapun' });
+      }
+    }
+
+    // Create pengajuan (office_id mengikuti user)
     const pengajuan = await Pengajuan.create({
       pegawai_nip,
       total_dokumen: totalDokumen,
       jenis_jabatan: finalJenisJabatan,
       created_by: user.id,
-      office_id: user.office_id || 'default'
+      office_id: user.office_id || null
     });
 
     res.json({ success: true, data: pengajuan });
@@ -255,6 +263,11 @@ export async function uploadPengajuanFile(req: AuthRequest, res: Response) {
         ip: req.ip
       });
       return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
+    }
+
+    // Office access check (non-admin hanya boleh akses pengajuan kantornya)
+    if (user?.role !== 'admin' && user?.office_id && pengajuan.office_id !== user.office_id) {
+      return res.status(403).json({ success: false, message: 'Forbidden: Anda hanya dapat mengelola pengajuan dari kantor Anda' });
     }
 
     // Check if file already exists for this type
@@ -408,6 +421,11 @@ export async function updatePengajuanFiles(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
     }
 
+    // Office access check (non-admin hanya boleh akses pengajuan kantornya)
+    if (user?.role !== 'admin' && user?.office_id && pengajuan.office_id !== user.office_id) {
+      return res.status(403).json({ success: false, message: 'Forbidden: Anda hanya dapat mengelola pengajuan dari kantor Anda' });
+    }
+
     logger.info('Pengajuan found for multiple file upload', {
       pengajuanId: pengajuan_id,
       pengajuanStatus: pengajuan.status,
@@ -522,10 +540,16 @@ export async function submitPengajuan(req: AuthRequest, res: Response) {
   try {
     const { pengajuan_id } = req.params;
     const { catatan } = req.body;
+    const user = req.user;
 
     const pengajuan = await Pengajuan.findByPk(pengajuan_id);
     if (!pengajuan) {
       return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
+    }
+
+    // Office access check (non-admin hanya boleh submit pengajuan kantornya)
+    if (user?.role !== 'admin' && user?.office_id && pengajuan.office_id !== user.office_id) {
+      return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak memiliki akses ke pengajuan ini' });
     }
 
     // Check if all required files uploaded
@@ -721,7 +745,8 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       where,
       include: [
         { model: Pegawai, as: 'pegawai' },
-        { model: PengajuanFile, as: 'files' }
+        { model: PengajuanFile, as: 'files' },
+        { model: Office, as: 'office', attributes: ['id', 'kabkota', 'name'] }
       ],
       order: [['created_at', 'DESC']],
       limit: Number(limit),
@@ -753,9 +778,21 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       })
     );
 
+    // Jika admin, tambahkan grouping berdasarkan kabupaten/kota
+    let groupedByKabkota: Record<string, any[]> | undefined = undefined;
+    if (user.role === 'admin') {
+      groupedByKabkota = updatedPengajuanRows.reduce((acc: any, row: any) => {
+        const kab = row.office?.kabkota || row.office?.name || row.pegawai?.induk_unit || row.pegawai?.unit_kerja || 'Lainnya';
+        if (!acc[kab]) acc[kab] = [];
+        acc[kab].push(row);
+        return acc;
+      }, {} as Record<string, any[]>);
+    }
+
     res.json({ 
       success: true, 
       data: updatedPengajuanRows,
+      ...(groupedByKabkota ? { grouped_by_kabkota: groupedByKabkota } : {}),
       pagination: {
         total: pengajuan.count,
         page: Number(page),
@@ -876,6 +913,11 @@ export async function resubmitPengajuan(req: AuthRequest, res: Response) {
     const pengajuan = await Pengajuan.findByPk(id);
     if (!pengajuan) {
       return res.status(404).json({ success: false, message: 'Pengajuan not found' });
+    }
+
+    // Office access check (non-admin hanya boleh resubmit pengajuan kantornya)
+    if (user.role !== 'admin' && pengajuan.office_id !== user.office_id) {
+      return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak memiliki akses ke pengajuan ini' });
     }
 
     // Hanya pengajuan dengan status rejected yang bisa diresubmit
