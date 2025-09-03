@@ -1,42 +1,32 @@
 import db from '../utils/db';
-import JobTypeConfiguration from '../models/JobTypeConfiguration';
 
 async function checkJobTypes() {
   try {
-    console.log('🔍 Checking job type configurations...');
-    console.log('=====================================');
-
-    const jobTypes = await JobTypeConfiguration.findAll({
-      order: [['jenis_jabatan', 'ASC']]
-    });
-
-    if (jobTypes.length === 0) {
-      console.log('❌ No job type configurations found in database');
-      console.log('💡 Run seed-job-types.ts to add default configurations');
-    } else {
-      console.log(`✅ Found ${jobTypes.length} job type configurations:`);
-      console.log('');
-      
-      jobTypes.forEach((jobType, index) => {
-        console.log(`${index + 1}. ${jobType.jenis_jabatan}`);
-        console.log(`   - ID: ${jobType.id}`);
-        console.log(`   - Min Dokumen: ${jobType.min_dokumen}`);
-        console.log(`   - Max Dokumen: ${jobType.max_dokumen}`);
-        console.log(`   - Active: ${jobType.is_active ? 'Yes' : 'No'}`);
-        
-        try {
-          const requiredFiles = JSON.parse(jobType.required_files);
-          console.log(`   - Required Files: ${requiredFiles.length} files`);
-          console.log(`     ${requiredFiles.join(', ')}`);
-        } catch (error) {
-          console.log(`   - Required Files: Error parsing JSON`);
-        }
-        console.log('');
-      });
-    }
-
+    console.log('Checking available job types...\n');
+    
+    // Check job type configuration
+    const [jobTypes] = await db.query(`
+      SELECT * FROM job_type_configuration ORDER BY id
+    `);
+    
+    console.log('Available job types:');
+    console.table(jobTypes);
+    
+    // Check admin wilayah file config
+    const [fileConfigs] = await db.query(`
+      SELECT 
+        awfc.*,
+        jtc.jenis_jabatan
+      FROM admin_wilayah_file_configuration awfc
+      LEFT JOIN job_type_configuration jtc ON awfc.jenis_jabatan_id = jtc.id
+      ORDER BY awfc.jenis_jabatan_id, awfc.file_type
+    `);
+    
+    console.log('\nAdmin Wilayah File Configs:');
+    console.table(fileConfigs);
+    
   } catch (error) {
-    console.error('❌ Error checking job types:', error);
+    console.error('Error:', error);
   } finally {
     await db.close();
   }

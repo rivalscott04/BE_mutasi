@@ -1006,16 +1006,24 @@ export async function verifyFile(req: AuthRequest, res: Response) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    // Hanya admin yang bisa verifikasi file
-    if (user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Only admin can verify files' });
-    }
-
-    const PengajuanFile = require('../models/PengajuanFile').default;
+    // Ambil file dan pengajuan terkait
     const file = await PengajuanFile.findByPk(file_id);
     
     if (!file) {
       return res.status(404).json({ success: false, message: 'File not found' });
+    }
+
+    // RBAC: admin selalu boleh; admin_wilayah boleh jika pengajuan milik kantornya dan status 'approved'
+    if (user.role !== 'admin') {
+      const pengajuan = await Pengajuan.findByPk(file.pengajuan_id);
+      if (!pengajuan) {
+        return res.status(404).json({ success: false, message: 'Pengajuan not found for this file' });
+      }
+      const sameOffice = user.office_id && pengajuan.office_id === user.office_id;
+      const statusAllowed = (pengajuan.status === 'approved' || pengajuan.status === 'submitted');
+      if (!(user.role === 'admin_wilayah' && sameOffice && statusAllowed)) {
+        return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak berhak memverifikasi file ini' });
+      }
     }
 
     // Update file verification status

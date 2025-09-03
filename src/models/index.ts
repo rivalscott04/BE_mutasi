@@ -7,6 +7,7 @@ import LetterFile from './LetterFile';
 import Pengajuan from './Pengajuan';
 import PengajuanFile from './PengajuanFile';
 import JobTypeConfiguration from './JobTypeConfiguration';
+import AdminWilayahFileConfig from './AdminWilayahFileConfig';
 
 // Relasi User - Office
 User.belongsTo(Office, { foreignKey: 'office_id', as: 'office' });
@@ -46,4 +47,23 @@ Office.hasMany(Pengajuan, { foreignKey: 'office_id', as: 'pengajuan' });
 PengajuanFile.belongsTo(Pengajuan, { foreignKey: 'pengajuan_id', as: 'pengajuan' });
 Pengajuan.hasMany(PengajuanFile, { foreignKey: 'pengajuan_id', as: 'files', onDelete: 'CASCADE' });
 
-export { db, User, Office, Pegawai, Letter, LetterFile, Pengajuan, PengajuanFile, JobTypeConfiguration }; 
+// Relasi AdminWilayahFileConfig - JobTypeConfiguration
+AdminWilayahFileConfig.belongsTo(JobTypeConfiguration, { foreignKey: 'jenis_jabatan_id', as: 'jenis_jabatan' });
+JobTypeConfiguration.hasMany(AdminWilayahFileConfig, { foreignKey: 'jenis_jabatan_id', as: 'admin_wilayah_files' });
+
+// Relasi PengajuanFile - User (uploaded_by)
+PengajuanFile.belongsTo(User, { foreignKey: 'uploaded_by', as: 'uploader' });
+User.hasMany(PengajuanFile, { foreignKey: 'uploaded_by', as: 'uploaded_files' });
+
+export { 
+  db, 
+  User, 
+  Office, 
+  Pegawai, 
+  Letter, 
+  LetterFile, 
+  Pengajuan, 
+  PengajuanFile, 
+  JobTypeConfiguration,
+  AdminWilayahFileConfig
+}; 

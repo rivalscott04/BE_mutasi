@@ -1,12 +1,34 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import db from '../utils/db';
 
+interface WorkflowStatus {
+  status: 'pending' | 'uploading' | 'reviewing' | 'completed' | 'rejected';
+  version: string;
+  started_at: Date;
+  completed_at?: Date;
+  assigned_to?: string;
+  notes?: string;
+}
+
+interface WorkflowMetadata {
+  current_stage: string;
+  total_stages: number;
+  completed_stages: number;
+  estimated_completion?: Date;
+  last_updated: Date;
+}
+
+interface Workflows {
+  admin_wilayah?: WorkflowStatus;
+  [key: string]: WorkflowStatus | undefined;
+}
+
 interface PengajuanAttributes {
   id: string;
   pegawai_nip: string;
   total_dokumen: number;
   jenis_jabatan: string;
-  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted';
+ status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted' | 'admin_wilayah_approved' | 'admin_wilayah_rejected';
   catatan?: string;
   rejection_reason?: string;
   rejected_by?: string;
@@ -19,16 +41,20 @@ interface PengajuanAttributes {
   office_id: string;
   created_at?: Date;
   updated_at?: Date;
+  
+  // New workflow fields
+  workflows?: Workflows;
+  workflow_metadata?: WorkflowMetadata;
 }
 
-type PengajuanCreationAttributes = Optional<PengajuanAttributes, 'id' | 'status' | 'catatan' | 'rejection_reason' | 'rejected_by' | 'rejected_at' | 'approved_by' | 'approved_at' | 'resubmitted_by' | 'resubmitted_at' | 'created_at' | 'updated_at'>;
+type PengajuanCreationAttributes = Optional<PengajuanAttributes, 'id' | 'status' | 'catatan' | 'rejection_reason' | 'rejected_by' | 'rejected_at' | 'approved_by' | 'approved_at' | 'resubmitted_by' | 'resubmitted_at' | 'created_at' | 'updated_at' | 'workflows' | 'workflow_metadata'>;
 
 class Pengajuan extends Model<PengajuanAttributes, PengajuanCreationAttributes> implements PengajuanAttributes {
   public id!: string;
   public pegawai_nip!: string;
   public total_dokumen!: number;
   public jenis_jabatan!: string;
-  public status!: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted';
+  public status!: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted' | 'admin_wilayah_approved' | 'admin_wilayah_rejected';
   public catatan?: string;
   public rejection_reason?: string;
   public rejected_by?: string;
@@ -41,6 +67,10 @@ class Pengajuan extends Model<PengajuanAttributes, PengajuanCreationAttributes> 
   public office_id!: string;
   public created_at?: Date;
   public updated_at?: Date;
+  
+  // New workflow fields
+  public workflows?: Workflows;
+  public workflow_metadata?: WorkflowMetadata;
 }
 
 Pengajuan.init({
@@ -62,7 +92,7 @@ Pengajuan.init({
     allowNull: false 
   },
   status: { 
-    type: DataTypes.ENUM('draft', 'submitted', 'approved', 'rejected', 'resubmitted'), 
+    type: DataTypes.ENUM('draft', 'submitted', 'approved', 'rejected', 'resubmitted', 'admin_wilayah_approved', 'admin_wilayah_rejected'), 
     defaultValue: 'draft' 
   },
   catatan: { 
@@ -104,6 +134,15 @@ Pengajuan.init({
   updated_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
+  },
+  // New workflow fields
+  workflows: {
+    type: DataTypes.JSON,
+    allowNull: true
+  },
+  workflow_metadata: {
+    type: DataTypes.JSON,
+    allowNull: true
   }
 }, {
   sequelize: db,
@@ -113,4 +152,5 @@ Pengajuan.init({
   updatedAt: 'updated_at'
 });
 
-export default Pengajuan; 
+export default Pengajuan;
+export type { WorkflowStatus, WorkflowMetadata, Workflows }; 

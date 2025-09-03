@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import User from '../models/User';
 import Office from '../models/Office';
 import { generateToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt';

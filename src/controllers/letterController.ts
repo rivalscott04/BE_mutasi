@@ -17,13 +17,28 @@ function writeLog(message: string) {
 export async function getAllLetters(req: Request, res: Response) {
   const user = (req as any).user;
   
+  // Debug logging
+  console.log('🔍 getAllLetters - User info:', {
+    role: user.role,
+    office_id: user.office_id,
+    wilayah: user.wilayah
+  });
+  
   // Build where clause based on user role and office
   let whereClause: any = {};
   
-  // If user is not admin and has office_id, filter by office
-  if (user.role !== 'admin' && user.office_id) {
+  // Admin can see all letters
+  if (user.role === 'admin') {
+    console.log('🔍 Admin user - no filtering applied');
+    // No filtering needed
+  }
+  // All other users (including admin_wilayah) can only see letters from their office
+  else if (user.office_id) {
+    console.log('🔍 User with office_id - filtering by office_id:', user.office_id);
     whereClause.office_id = user.office_id;
   }
+  
+  console.log('🔍 Final where clause:', whereClause);
   
   const letters = await Letter.findAll({
     where: whereClause,
@@ -33,6 +48,9 @@ export async function getAllLetters(req: Request, res: Response) {
       { model: Office, as: 'office', attributes: ['id', 'name', 'kabkota'] }
     ]
   });
+  
+  console.log('🔍 Found letters count:', letters.length);
+  
   res.json({ letters });
 }
 
@@ -51,7 +69,11 @@ export async function getLetterById(req: Request, res: Response) {
   if (!letter) return res.status(404).json({ message: 'Letter not found' });
   
   // Check if user can access this letter
-  if (user.role !== 'admin' && user.office_id && letter.office_id !== user.office_id) {
+  if (user.role === 'admin') {
+    // Admin can access all letters
+  }
+  else if (user.office_id && letter.office_id !== user.office_id) {
+    // All other users (including admin_wilayah) can only access letters from their office
     return res.status(403).json({ 
       message: 'Anda tidak memiliki izin untuk melihat surat ini. Hanya surat dari kantor Anda yang dapat diakses.' 
     });

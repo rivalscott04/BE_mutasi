@@ -6,22 +6,24 @@ interface UserAttributes {
   email: string;
   password_hash: string;
   full_name: string;
-  role: 'admin' | 'operator' | 'user';
+  role: 'admin' | 'operator' | 'user' | 'admin_wilayah';
   office_id?: string;
+  wilayah?: string;
   is_active: boolean;
   created_at?: Date;
   updated_at?: Date;
 }
 
-type UserCreationAttributes = Optional<UserAttributes, 'id' | 'office_id' | 'is_active' | 'created_at' | 'updated_at'>;
+type UserCreationAttributes = Optional<UserAttributes, 'id' | 'office_id' | 'wilayah' | 'is_active' | 'created_at' | 'updated_at'>;
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   public id!: string;
   public email!: string;
   public password_hash!: string;
   public full_name!: string;
-  public role!: 'admin' | 'operator' | 'user';
+  public role!: 'admin' | 'operator' | 'user' | 'admin_wilayah';
   public office_id?: string;
+  public wilayah?: string;
   public is_active!: boolean;
   public readonly created_at?: Date;
   public readonly updated_at?: Date;
@@ -48,11 +50,15 @@ User.init(
       allowNull: false,
     },
     role: {
-      type: DataTypes.ENUM('admin', 'operator', 'user'),
+      type: DataTypes.ENUM('admin', 'operator', 'user', 'admin_wilayah'),
       allowNull: false,
     },
     office_id: {
       type: DataTypes.UUID,
+      allowNull: true,
+    },
+    wilayah: {
+      type: DataTypes.STRING,
       allowNull: true,
     },
     is_active: {

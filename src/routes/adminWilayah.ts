@@ -1,0 +1,49 @@
+import express from 'express';
+import multer from 'multer';
+import { 
+  getAdminWilayahDashboard, 
+  getPengajuanDetail, 
+  approvePengajuan,
+  rejectPengajuan,
+  uploadAdminWilayahFile, 
+  submitToSuperadmin,
+  getAdminWilayahHistory
+} from '../controllers/adminWilayahController';
+import { authMiddleware } from '../middleware/auth';
+import { requireRole } from '../middleware/role';
+
+const router = express.Router();
+
+// Multer configuration for file uploads
+const upload = multer({ 
+  dest: 'uploads/pengajuan/',
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
+
+// Apply auth middleware to all routes
+router.use(authMiddleware);
+router.use(requireRole('admin_wilayah'));
+
+// Dashboard admin wilayah
+router.get('/dashboard', getAdminWilayahDashboard);
+// Arsip/riwayat admin wilayah
+router.get('/history', getAdminWilayahHistory);
+
+// Detail pengajuan untuk admin wilayah
+router.get('/pengajuan/:id', getPengajuanDetail);
+
+// Admin Wilayah APPROVE pengajuan (bisa langsung, file upload opsional)
+router.post('/pengajuan/:pengajuanId/approve', approvePengajuan);
+
+// Admin Wilayah REJECT pengajuan (bisa langsung, file upload opsional)
+router.post('/pengajuan/:pengajuanId/reject', rejectPengajuan);
+
+// Upload file admin wilayah (OPSIONAL sesuai konfigurasi superadmin)
+router.post('/pengajuan/:pengajuanId/upload', upload.single('file'), uploadAdminWilayahFile);
+
+// Submit pengajuan admin wilayah ke superadmin (setelah approve/reject)
+router.post('/pengajuan/:pengajuanId/submit-to-superadmin', submitToSuperadmin);
+
+export default router;

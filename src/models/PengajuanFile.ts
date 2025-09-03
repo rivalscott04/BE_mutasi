@@ -14,9 +14,16 @@ interface PengajuanFileAttributes {
   verified_by?: string;
   verified_at?: Date;
   created_at?: Date;
+  
+  // New tracking fields
+  file_category: 'kabupaten' | 'admin_wilayah';
+  uploaded_by?: string;
+  uploaded_by_role: 'kabupaten' | 'admin_wilayah';
+  uploaded_by_name?: string;
+  uploaded_by_office?: string;
 }
 
-type PengajuanFileCreationAttributes = Optional<PengajuanFileAttributes, 'id' | 'upload_status' | 'verification_status' | 'verification_notes' | 'verified_by' | 'verified_at' | 'created_at'>;
+type PengajuanFileCreationAttributes = Optional<PengajuanFileAttributes, 'id' | 'upload_status' | 'verification_status' | 'verification_notes' | 'verified_by' | 'verified_at' | 'created_at' | 'file_category' | 'uploaded_by_role'>;
 
 class PengajuanFile extends Model<PengajuanFileAttributes, PengajuanFileCreationAttributes> implements PengajuanFileAttributes {
   public id!: string;
@@ -31,6 +38,13 @@ class PengajuanFile extends Model<PengajuanFileAttributes, PengajuanFileCreation
   public verified_by?: string;
   public verified_at?: Date;
   public created_at?: Date;
+  
+  // New tracking fields
+  public file_category!: 'kabupaten' | 'admin_wilayah';
+  public uploaded_by?: string;
+  public uploaded_by_role!: 'kabupaten' | 'admin_wilayah';
+  public uploaded_by_name?: string;
+  public uploaded_by_office?: string;
 }
 
 PengajuanFile.init({
@@ -79,6 +93,30 @@ PengajuanFile.init({
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
+  },
+  
+  // New tracking fields
+  file_category: {
+    type: DataTypes.ENUM('kabupaten', 'admin_wilayah'),
+    allowNull: false,
+    defaultValue: 'kabupaten'
+  },
+  uploaded_by: {
+    type: DataTypes.CHAR(36),
+    allowNull: true
+  },
+  uploaded_by_role: {
+    type: DataTypes.ENUM('kabupaten', 'admin_wilayah'),
+    allowNull: false,
+    defaultValue: 'kabupaten'
+  },
+  uploaded_by_name: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  uploaded_by_office: {
+    type: DataTypes.STRING(100),
+    allowNull: true
   }
 }, {
   sequelize: db,

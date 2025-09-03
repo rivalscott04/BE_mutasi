@@ -9,6 +9,8 @@ import lettersRouter from './routes/letters';
 import filesRouter from './routes/files';
 import pengajuanRouter from './routes/pengajuan';
 import jobTypeConfigRouter from './routes/jobTypeConfig';
+import adminWilayahRouter from './routes/adminWilayah';
+import adminWilayahFileConfigRouter from './routes/adminWilayahFileConfig';
 import publicRouter from './routes/public';
 import { sessionMiddleware, trackImpersonation } from './middleware/sessionManager';
 import { bypassOfficeFilterForAdmin } from './middleware/adminAccess';
@@ -63,6 +65,12 @@ app.use('/api/letters', authMiddleware, bypassOfficeFilterForAdmin, lettersRoute
 app.use('/api/files', authMiddleware, bypassOfficeFilterForAdmin, filesRouter);
 app.use('/api/pengajuan', authMiddleware, bypassOfficeFilterForAdmin, pengajuanRouter);
 app.use('/api/job-type-configurations', authMiddleware, bypassOfficeFilterForAdmin, jobTypeConfigRouter);
+
+// Admin Wilayah routes
+app.use('/api/admin-wilayah', adminWilayahRouter);
+
+// Admin Wilayah File Config routes - dipindah ke level yang sama
+app.use('/api/admin-wilayah-file-config', authMiddleware, bypassOfficeFilterForAdmin, adminWilayahFileConfigRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
