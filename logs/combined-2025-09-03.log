@@ -1,0 +1,8 @@
+[2025-09-03T17:39:29.301Z] INFO: User profile accessed
+{
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "email": "admin.kanwil@kemenag.go.id",
+  "role": "admin",
+  "officeId": null
+}
+

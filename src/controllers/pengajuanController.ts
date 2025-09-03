@@ -9,6 +9,7 @@ import Office from '../models/Office';
 import { Op } from 'sequelize';
 import { AuthRequest } from '../middleware/auth';
 import logger from '../utils/logger';
+import path from 'path';
 
 // Get pegawai grouped by kabupaten with surat generated
 export async function getPegawaiGroupedByKabupaten(req: AuthRequest, res: Response) {
@@ -518,7 +519,35 @@ export async function updatePengajuanFiles(req: AuthRequest, res: Response) {
       ip: req.ip
     });
 
-    return res.json({ success: true, message: 'Dokumen berhasil diperbarui', data: { files: updatedFiles } });
+    // Update status pengajuan dari rejected ke draft jika status saat ini adalah rejected
+    if (pengajuan.status === 'rejected') {
+      logger.info('Updating pengajuan status from rejected to draft', {
+        pengajuanId: pengajuan_id,
+        oldStatus: pengajuan.status,
+        newStatus: 'draft',
+        userId: user?.id
+      });
+
+      await pengajuan.update({
+        status: 'draft',
+        updated_at: new Date()
+      });
+
+      logger.info('Pengajuan status updated successfully', {
+        pengajuanId: pengajuan_id,
+        newStatus: 'draft',
+        userId: user?.id
+      });
+    }
+
+    return res.json({ 
+      success: true, 
+      message: 'Dokumen berhasil diperbarui dan status pengajuan diubah ke draft', 
+      data: { 
+        files: updatedFiles,
+        pengajuan_status: pengajuan.status === 'rejected' ? 'draft' : pengajuan.status
+      } 
+    });
   } catch (error) {
     logger.error('Multiple file upload failed with error', {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -920,9 +949,9 @@ export async function resubmitPengajuan(req: AuthRequest, res: Response) {
       return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak memiliki akses ke pengajuan ini' });
     }
 
-    // Hanya pengajuan dengan status rejected yang bisa diresubmit
-    if (pengajuan.status !== 'rejected') {
-      return res.status(400).json({ success: false, message: 'Only rejected pengajuan can be resubmitted' });
+    // Pengajuan dengan status rejected atau draft yang bisa diresubmit
+    if (pengajuan.status !== 'rejected' && pengajuan.status !== 'draft') {
+      return res.status(400).json({ success: false, message: 'Only rejected or draft pengajuan can be resubmitted' });
     }
 
     // Update pengajuan: kembalikan ke status 'submitted' agar bisa diproses admin
@@ -1145,3 +1174,132 @@ export async function generatePrintReport(req: AuthRequest, res: Response) {
     res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
   }
 }
+
+
+
+
+
+
+
+
+
+// Final approval pengajuan oleh superadmin
+export async function finalApprovePengajuan(req: AuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    const { notes } = req.body;
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Hanya superadmin yang bisa approve final
+    if (user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only superadmin can approve final' });
+    }
+
+    const pengajuan = await Pengajuan.findByPk(id);
+    if (!pengajuan) {
+      return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
+    }
+
+    // Hanya bisa approve final jika status admin_wilayah_approved
+    if (pengajuan.status !== 'admin_wilayah_approved') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Hanya pengajuan yang sudah disetujui admin wilayah yang bisa diapprove final' 
+      });
+    }
+
+    // Update status pengajuan menjadi final_approved
+    await pengajuan.update({
+      status: 'final_approved',
+      final_approved_by: user.email || user.id,
+      final_approved_at: new Date()
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Pengajuan final approved successfully',
+      data: pengajuan
+    });
+  } catch (error) {
+    console.error('Error in finalApprovePengajuan:', error);
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
+// Final rejection pengajuan oleh superadmin
+export async function finalRejectPengajuan(req: AuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    const { rejection_reason } = req.body;
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Hanya superadmin yang bisa reject final
+    if (user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only superadmin can reject final' });
+    }
+
+    if (!rejection_reason || rejection_reason.trim() === '') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Alasan penolakan final wajib diisi' 
+      });
+    }
+
+    const pengajuan = await Pengajuan.findByPk(id);
+    if (!pengajuan) {
+      return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
+    }
+
+    // Hanya bisa reject final jika status admin_wilayah_approved
+    if (pengajuan.status !== 'admin_wilayah_approved') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Hanya pengajuan yang sudah disetujui admin wilayah yang bisa direject final' 
+      });
+    }
+
+    // Update status pengajuan menjadi final_rejected
+    await pengajuan.update({
+      status: 'final_rejected',
+      final_rejected_by: user.email || user.id,
+      final_rejected_at: new Date(),
+      final_rejection_reason: rejection_reason.trim()
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Pengajuan final rejected successfully',
+      data: pengajuan
+    });
+  } catch (error) {
+    console.error('Error in finalRejectPengajuan:', error);
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
+export default {
+  getPegawaiGroupedByKabupaten,
+  createPengajuan,
+  uploadPengajuanFile,
+  submitPengajuan,
+  getPengajuanDetail,
+  getAllPengajuan,
+  approvePengajuan,
+  rejectPengajuan,
+  resubmitPengajuan,
+  deletePengajuan,
+  verifyFile,
+  generatePrintReport,
+  getFilterOptions,
+  updatePengajuanFiles,
+  finalApprovePengajuan,
+  finalRejectPengajuan
+};

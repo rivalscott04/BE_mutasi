@@ -159,6 +159,7 @@ export async function impersonate(req: any, res: Response) {
     const payload = {
       id: user.id,
       email: user.email,
+      full_name: user.full_name,
       role: user.role,
       office_id: user.office_id,
       original_admin_id: req.user.id,

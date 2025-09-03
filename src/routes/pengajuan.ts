@@ -16,7 +16,9 @@ import {
   verifyFile,
   generatePrintReport,
   getFilterOptions,
-  updatePengajuanFiles
+  updatePengajuanFiles,
+  finalApprovePengajuan,
+  finalRejectPengajuan
 } from '../controllers/pengajuanController';
 import { authMiddleware } from '../middleware/auth';
 import logger from '../utils/logger';
@@ -198,7 +200,14 @@ router.get('/', authMiddleware, getAllPengajuan);
 router.put('/:id/approve', authMiddleware, approvePengajuan);
 router.put('/:id/reject', authMiddleware, rejectPengajuan);
 router.put('/:id/resubmit', authMiddleware, resubmitPengajuan);
+
+// Final approval system routes (superadmin only)
+router.post('/:id/final-approve', authMiddleware, finalApprovePengajuan);
+router.post('/:id/final-reject', authMiddleware, finalRejectPengajuan);
+
 router.delete('/:id', authMiddleware, deletePengajuan);
+
+
 
 // Print report routes
 router.get('/:id/print-report', authMiddleware, generatePrintReport);

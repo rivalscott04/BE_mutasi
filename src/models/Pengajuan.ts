@@ -28,7 +28,7 @@ interface PengajuanAttributes {
   pegawai_nip: string;
   total_dokumen: number;
   jenis_jabatan: string;
- status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted' | 'admin_wilayah_approved' | 'admin_wilayah_rejected';
+   status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted' | 'admin_wilayah_approved' | 'admin_wilayah_rejected' | 'final_approved' | 'final_rejected';
   catatan?: string;
   rejection_reason?: string;
   rejected_by?: string;
@@ -37,6 +37,11 @@ interface PengajuanAttributes {
   approved_at?: Date;
   resubmitted_by?: string;
   resubmitted_at?: Date;
+  final_approved_by?: string;
+  final_approved_at?: Date;
+  final_rejected_by?: string;
+  final_rejected_at?: Date;
+  final_rejection_reason?: string;
   created_by: string;
   office_id: string;
   created_at?: Date;
@@ -63,6 +68,11 @@ class Pengajuan extends Model<PengajuanAttributes, PengajuanCreationAttributes> 
   public approved_at?: Date;
   public resubmitted_by?: string;
   public resubmitted_at?: Date;
+  public final_approved_by?: string;
+  public final_approved_at?: Date;
+  public final_rejected_by?: string;
+  public final_rejected_at?: Date;
+  public final_rejection_reason?: string;
   public created_by!: string;
   public office_id!: string;
   public created_at?: Date;
@@ -92,7 +102,7 @@ Pengajuan.init({
     allowNull: false 
   },
   status: { 
-    type: DataTypes.ENUM('draft', 'submitted', 'approved', 'rejected', 'resubmitted', 'admin_wilayah_approved', 'admin_wilayah_rejected'), 
+    type: DataTypes.ENUM('draft', 'submitted', 'approved', 'rejected', 'resubmitted', 'admin_wilayah_approved', 'admin_wilayah_rejected', 'final_approved', 'final_rejected'), 
     defaultValue: 'draft' 
   },
   catatan: { 
