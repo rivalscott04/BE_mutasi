@@ -1,5 +1,5 @@
-import { db } from '../src/models';
-import { up } from '../src/seeders/adminWilayahFileConfigSeeder';
+import { db } from '../models';
+import { up } from '../seeders/adminWilayahFileConfigSeeder';
 
 async function runSeeder() {
   try {
@@ -21,4 +21,3 @@ async function runSeeder() {
 }
 
 runSeeder();
-

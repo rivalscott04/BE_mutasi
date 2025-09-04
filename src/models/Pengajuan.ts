@@ -59,7 +59,7 @@ class Pengajuan extends Model<PengajuanAttributes, PengajuanCreationAttributes> 
   public pegawai_nip!: string;
   public total_dokumen!: number;
   public jenis_jabatan!: string;
-  public status!: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted' | 'admin_wilayah_approved' | 'admin_wilayah_rejected';
+  public status!: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted' | 'admin_wilayah_approved' | 'admin_wilayah_rejected' | 'final_approved' | 'final_rejected';
   public catatan?: string;
   public rejection_reason?: string;
   public rejected_by?: string;

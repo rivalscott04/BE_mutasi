@@ -243,6 +243,19 @@ export async function uploadPengajuanFile(req: AuthRequest, res: Response) {
       return res.status(400).json({ success: false, message: 'File type tidak ditemukan' });
     }
 
+    // Enforce per-type file size limits (default 500KB, SKP 2 Tahun Terakhir up to 1MB)
+    const oneMB = 1024 * 1024;
+    const fiveHundredKB = 500 * 1024;
+    const allowedSize = file_type === 'skp_2_tahun_terakhir' ? oneMB : fiveHundredKB;
+    if (file.size > allowedSize) {
+      return res.status(400).json({
+        success: false,
+        message: file_type === 'skp_2_tahun_terakhir'
+          ? 'File SKP 2 Tahun Terakhir maksimal 1MB.'
+          : 'File terlalu besar. Maksimal 500KB.'
+      });
+    }
+
     logger.info('File details received', {
       pengajuanId: pengajuan_id,
       fileType: file_type,
@@ -627,8 +640,15 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
     }
 
-    // Check if user has access to this pengajuan (kecuali admin)
-    if (user.role !== 'admin' && pengajuan.office_id !== user.office_id) {
+    // Check if user has access to this pengajuan
+    // - admin: full access
+    // - user (admin pusat read-only): global access only for final_approved
+    // - others: must match office_id
+    if (user.role === 'user') {
+      if (pengajuan.status !== 'final_approved') {
+        return res.status(403).json({ success: false, message: 'Forbidden: Hanya pengajuan final_approved yang dapat diakses' });
+      }
+    } else if (user.role !== 'admin' && pengajuan.office_id !== user.office_id) {
       return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak memiliki akses ke pengajuan ini' });
     }
 
@@ -758,8 +778,13 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       where.status = status;
     }
 
-    // Filter berdasarkan office_id user (kecuali admin yang bisa lihat semua)
-    if (user.role !== 'admin') {
+    // RBAC filter
+    // - admin: lihat semua
+    // - user (admin pusat read-only): global final_approved saja
+    // - lainnya: batasi office_id
+    if (user.role === 'user') {
+      where.status = 'final_approved';
+    } else if (user.role !== 'admin') {
       where.office_id = user.office_id;
     }
 
@@ -807,9 +832,9 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       })
     );
 
-    // Jika admin, tambahkan grouping berdasarkan kabupaten/kota
+    // Tambahkan grouping berdasarkan kabupaten/kota untuk admin dan user read-only
     let groupedByKabkota: Record<string, any[]> | undefined = undefined;
-    if (user.role === 'admin') {
+    if (user.role === 'admin' || user.role === 'user') {
       groupedByKabkota = updatedPengajuanRows.reduce((acc: any, row: any) => {
         const kab = row.office?.kabkota || row.office?.name || row.pegawai?.induk_unit || row.pegawai?.unit_kerja || 'Lainnya';
         if (!acc[kab]) acc[kab] = [];
