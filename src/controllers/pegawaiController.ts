@@ -9,7 +9,12 @@ export async function getAllPegawai(req: Request, res: Response) {
 
 export async function getPegawaiById(req: Request, res: Response) {
   const { id } = req.params;
-  const pegawai = await Pegawai.findOne({ where: { nip: id } });
+  const lookup = (id || '').toString().trim();
+  // Robust lookup: try by NIP first, then fallback to UUID id
+  let pegawai = await Pegawai.findOne({ where: { nip: lookup } });
+  if (!pegawai) {
+    pegawai = await Pegawai.findOne({ where: { id: lookup } });
+  }
   if (!pegawai) return res.status(404).json({ message: 'Pegawai not found' });
   res.json({ pegawai });
 }
@@ -26,7 +31,12 @@ export async function createPegawai(req: Request, res: Response) {
 export async function updatePegawai(req: Request, res: Response) {
   const { id } = req.params;
   const { nama, golongan, tmt_pensiun, unit_kerja, induk_unit, jabatan, kantor_id, jenis_pegawai, aktif } = req.body;
-  const pegawai = await Pegawai.findOne({ where: { nip: id } });
+  const lookup = (id || '').toString().trim();
+  // Robust lookup: by NIP or by UUID id
+  let pegawai = await Pegawai.findOne({ where: { nip: lookup } });
+  if (!pegawai) {
+    pegawai = await Pegawai.findOne({ where: { id: lookup } });
+  }
   if (!pegawai) return res.status(404).json({ message: 'Pegawai not found' });
   if (nama) pegawai.nama = nama;
   if (golongan) pegawai.golongan = golongan;
