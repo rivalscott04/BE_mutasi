@@ -843,16 +843,26 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       }, {} as Record<string, any[]>);
     }
 
+    const paginationData = {
+      total: pengajuan.count,
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: Math.ceil(pengajuan.count / Number(limit))
+    };
+
+    console.log('🔍 Debug getAllPengajuan - Pagination calculation (for debugging pagination issue):', {
+      totalCount: pengajuan.count,
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: paginationData.totalPages,
+      rowsReturned: updatedPengajuanRows.length
+    });
+
     res.json({ 
       success: true, 
       data: updatedPengajuanRows,
       ...(groupedByKabkota ? { grouped_by_kabkota: groupedByKabkota } : {}),
-      pagination: {
-        total: pengajuan.count,
-        page: Number(page),
-        limit: Number(limit),
-        totalPages: Math.ceil(pengajuan.count / Number(limit))
-      }
+      pagination: paginationData
     });
   } catch (error) {
     console.error('Error in getAllPengajuan:', error);

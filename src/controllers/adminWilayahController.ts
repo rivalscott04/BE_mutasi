@@ -23,6 +23,9 @@ export async function getAdminWilayahDashboard(req: Request, res: Response) {
       order: [['created_at', 'DESC']]
     });
 
+    console.log('🔍 Debug getAdminWilayahDashboard - Raw pengajuan count (for debugging pagination issue):', pengajuanList.length);
+    console.log('🔍 Debug getAdminWilayahDashboard - User office_id:', user.office_id);
+
     // Per-pengajuan progress info
     const enriched = await Promise.all(pengajuanList.map(async (p: any) => {
       // total required admin wilayah files
@@ -70,6 +73,9 @@ export async function getAdminWilayahDashboard(req: Request, res: Response) {
       verifiedFiles: enriched.reduce((acc, e) => acc + e.progress_admin_wilayah.approved, 0),
       rejectedFiles: 0,
     };
+
+    console.log('🔍 Debug getAdminWilayahDashboard - Final enriched count (for debugging pagination issue):', enriched.length);
+    console.log('🔍 Debug getAdminWilayahDashboard - Stats:', stats);
 
     res.json({ 
       success: true,
