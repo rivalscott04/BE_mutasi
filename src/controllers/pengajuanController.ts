@@ -789,7 +789,7 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
     }
 
     // Filter berdasarkan created_by (siapa yang membuat)
-    if (created_by) {
+    if (created_by && created_by !== 'all') {
       where.created_by = created_by;
     }
 
@@ -804,7 +804,8 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       ],
       order: [['created_at', 'DESC']],
       limit: Number(limit),
-      offset
+      offset,
+      distinct: true // Fix count issue when using includes
     });
 
     // Update total_dokumen untuk setiap pengajuan berdasarkan job type configuration
@@ -850,13 +851,6 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       totalPages: Math.ceil(pengajuan.count / Number(limit))
     };
 
-    console.log('🔍 Debug getAllPengajuan - Pagination calculation (for debugging pagination issue):', {
-      totalCount: pengajuan.count,
-      page: Number(page),
-      limit: Number(limit),
-      totalPages: paginationData.totalPages,
-      rowsReturned: updatedPengajuanRows.length
-    });
 
     res.json({ 
       success: true, 
@@ -1130,15 +1124,14 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
       raw: true
     });
 
-                            // Get user details for created_by
-                        const userIds = createdByUsers.map(u => u.created_by).filter(Boolean);
-                        const users = await User.findAll({
-                          where: { id: { [Op.in]: userIds } },
-                          attributes: ['id', 'email', 'full_name'],
-                          raw: true
-                        });
+    // Get user details for created_by
+    const userIds = createdByUsers.map(u => u.created_by).filter(Boolean);
+    const users = await User.findAll({
+      where: { id: { [Op.in]: userIds } },
+      attributes: ['id', 'email', 'full_name'],
+      raw: true
+    });
 
-                        console.log('🔍 Debug getFilterOptions - Users found:', users);
 
     res.json({
       success: true,
