@@ -64,7 +64,14 @@ export async function searchPegawai(req: Request, res: Response) {
   if (!q || typeof q !== 'string') {
     return res.status(400).json({ message: 'Query parameter q is required' });
   }
-  const pegawai = await Pegawai.findAll({ where: { nama: { [Op.like]: `%${q}%` } } });
+  const pegawai = await Pegawai.findAll({ 
+    where: { 
+      [Op.or]: [
+        { nama: { [Op.like]: `%${q}%` } },
+        { nip: { [Op.like]: `%${q}%` } }
+      ]
+    } 
+  });
   res.json({ pegawai });
 }
 
