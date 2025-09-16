@@ -67,9 +67,9 @@ const upload = multer({
       cb(new Error('Only PDF files are allowed'));
     }
   },
-  // Set a permissive upper bound (1MB) here; enforce per-type limits in controller
+  // Set a permissive upper bound (2MB) here; enforce per-type limits in controller
   limits: { 
-    fileSize: 1024 * 1024
+    fileSize: 2 * 1024 * 1024
   }
 });
 
@@ -89,7 +89,7 @@ const handleMulterError = (err: any, req: any, res: any, next: any) => {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ 
         success: false, 
-        message: 'File terlalu besar. Maksimal 1MB per file.' 
+        message: 'File terlalu besar. Maksimal 2MB per file.' 
       });
     }
     
