@@ -978,9 +978,9 @@ export async function resubmitPengajuan(req: AuthRequest, res: Response) {
       return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak memiliki akses ke pengajuan ini' });
     }
 
-    // Pengajuan dengan status rejected atau draft yang bisa diresubmit
-    if (pengajuan.status !== 'rejected' && pengajuan.status !== 'draft') {
-      return res.status(400).json({ success: false, message: 'Only rejected or draft pengajuan can be resubmitted' });
+    // Pengajuan dengan status rejected, draft, atau admin_wilayah_rejected yang bisa diresubmit
+    if (pengajuan.status !== 'rejected' && pengajuan.status !== 'draft' && pengajuan.status !== 'admin_wilayah_rejected') {
+      return res.status(400).json({ success: false, message: 'Only rejected, draft, or admin_wilayah_rejected pengajuan can be resubmitted' });
     }
 
     // Update pengajuan: kembalikan ke status 'submitted' agar bisa diproses admin
