@@ -227,11 +227,14 @@ export const updateFileConfig = async (req: AuthRequest, res: Response) => {
     
     // Available file types untuk admin wilayah (hardcoded seperti di frontend)
     const adminWilayahAvailableFileTypes = [
-      { id: 'surat_rekomendasi_kanwil', name: 'Surat Rekomendasi Kanwil', category: 'Dokumen Kanwil', is_required: true, description: 'Surat rekomendasi dari Kanwil Provinsi' },
+      { id: 'surat_rekomendasi_kanwil', name: 'Surat Rekomendasi dari Instansi Pembina', category: 'Dokumen Instansi Pembina', is_required: true, description: 'Surat rekomendasi dari instansi pembina dengan pilihan varian 6.1-6.9' },
       { id: 'surat_persetujuan_kepala_wilayah', name: 'Surat Persetujuan Kepala Wilayah', category: 'Dokumen Kanwil', is_required: true, description: 'Surat persetujuan dari Kepala Wilayah Kementerian Agama Provinsi' },
       { id: 'surat_pengantar_permohonan_rekomendasi', name: 'Surat Pengantar Permohonan Rekomendasi', category: 'Dokumen Pengantar', is_required: true, description: 'Surat pengantar permohonan rekomendasi pindah tugas' },
-      { id: 'surat_pernyataan_tidak_tugas_belajar', name: 'Surat Pernyataan Tidak Sedang Menjalani Tugas Belajar', category: 'Dokumen Pernyataan', is_required: true, description: 'Surat pernyataan tidak sedang menjalani tugas belajar' },
-      { id: 'surat_pernyataan_tidak_ikatan_dinas', name: 'Surat Pernyataan Tidak Sedang Menjalani Ikatan Dinas', category: 'Dokumen Pernyataan', is_required: true, description: 'Surat pernyataan tidak sedang menjalani ikatan dinas' },
+      { id: 'surat_pernyataan_tidak_tugas_belajar', name: 'Surat Pernyataan Tidak Sedang Menjalani Tugas Belajar atau Ikatan Dinas', category: 'Dokumen Pernyataan', is_required: true, description: 'Surat pernyataan tidak sedang menjalani tugas belajar atau ikatan dinas' },
+      { id: 'surat_pernyataan_tidak_hukuman_disiplin', name: 'Surat Pernyataan Tidak Sedang Dijatuhi Hukuman Disiplin Tingkat Sedang atau Berat', category: 'Dokumen Pernyataan', is_required: true, description: 'Surat pernyataan tidak sedang dijatuhi hukuman disiplin tingkat sedang atau berat' },
+      { id: 'surat_pernyataan_tidak_proses_pidana', name: 'Surat Pernyataan Tidak Sedang Menjalani Proses Pidana atau Pernah Dipidana Penjara', category: 'Dokumen Pernyataan', is_required: true, description: 'Surat pernyataan tidak sedang menjalani proses pidana atau pernah dipidana penjara' },
+      { id: 'surat_pernyataan_tanggung_jawab_mutlak', name: 'Surat Pernyataan Tanggung Jawab Mutlak (SPTJM)', category: 'Dokumen Pernyataan', is_required: true, description: 'Surat pernyataan tanggung jawab mutlak untuk pengajuan mutasi' },
+      { id: 'skbt', name: 'Surat Keterangan Bebas Temuan (SKBT)', category: 'Dokumen Keterangan', is_required: true, description: 'Surat keterangan bebas temuan untuk pengajuan mutasi' },
       { id: 'surat_keterangan_kanwil', name: 'Surat Keterangan dari Kanwil', category: 'Dokumen Keterangan', is_required: true, description: 'Surat keterangan resmi dari Kanwil Provinsi' },
       { id: 'surat_rekomendasi_kanwil_khusus', name: 'Surat Rekomendasi Khusus dari Kanwil', category: 'Dokumen Keterangan', is_required: true, description: 'Surat rekomendasi khusus dari Kanwil Provinsi' }
     ];

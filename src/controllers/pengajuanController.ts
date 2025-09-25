@@ -766,7 +766,7 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
 // Get all pengajuan
 export async function getAllPengajuan(req: AuthRequest, res: Response) {
   try {
-    const { status, page = 1, limit = 10, created_by } = req.query;
+    const { status, page = 1, limit = 50, created_by, search } = req.query;
     const user = req.user;
     
     if (!user) {
@@ -795,18 +795,82 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
 
     const offset = (Number(page) - 1) * Number(limit);
 
+    // Debug logging
+    console.log('🔍 getAllPengajuan Debug:', {
+      status,
+      page,
+      limit,
+      created_by,
+      search,
+      userRole: user.role,
+      whereClause: where
+    });
+
+    // Build include conditions for search
+    const includeConditions: any[] = [
+      { model: Pegawai, as: 'pegawai' },
+      { model: PengajuanFile, as: 'files' },
+      { model: Office, as: 'office', attributes: ['id', 'kabkota', 'name'] }
+    ];
+
+    // Add search functionality
+    if (search) {
+      // Search in pegawai nama, jabatan, or office name
+      includeConditions[0] = {
+        model: Pegawai,
+        as: 'pegawai',
+        where: {
+          [Op.or]: [
+            { nama: { [Op.like]: `%${search}%` } },
+            { jabatan: { [Op.like]: `%${search}%` } },
+            { unit_kerja: { [Op.like]: `%${search}%` } }
+          ]
+        },
+        required: true
+      };
+    }
+
     const pengajuan = await Pengajuan.findAndCountAll({
       where,
-      include: [
-        { model: Pegawai, as: 'pegawai' },
-        { model: PengajuanFile, as: 'files' },
-        { model: Office, as: 'office', attributes: ['id', 'kabkota', 'name'] }
-      ],
+      include: includeConditions,
       order: [['created_at', 'DESC']],
       limit: Number(limit),
       offset,
       distinct: true // Fix count issue when using includes
     });
+
+    // Debug logging for query results
+    console.log('📊 Query Results:', {
+      totalCount: pengajuan.count,
+      returnedRows: pengajuan.rows.length,
+      status: status,
+      limit: Number(limit),
+      offset: offset
+    });
+
+    // Additional debug: Check total count for admin_wilayah_approved status specifically
+    if (status === 'admin_wilayah_approved') {
+      const totalAdminWilayahApproved = await Pengajuan.count({
+        where: { status: 'admin_wilayah_approved' }
+      });
+      console.log('🔍 Total admin_wilayah_approved in database:', totalAdminWilayahApproved);
+      
+      // Check by office
+      const byOffice = await Pengajuan.findAll({
+        where: { status: 'admin_wilayah_approved' },
+        include: [{ model: Office, as: 'office', attributes: ['id', 'kabkota', 'name'] }],
+        attributes: ['id', 'office_id'],
+        raw: false
+      });
+      
+      const officeCounts = byOffice.reduce((acc: any, p: any) => {
+        const officeName = p.office?.kabkota || p.office?.name || 'Unknown';
+        acc[officeName] = (acc[officeName] || 0) + 1;
+        return acc;
+      }, {});
+      
+      console.log('🏢 admin_wilayah_approved by office:', officeCounts);
+    }
 
     // Update total_dokumen untuk setiap pengajuan berdasarkan job type configuration
     const updatedPengajuanRows = await Promise.all(
