@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Pengajuan, PengajuanFile, AdminWilayahFileConfig, Pegawai, Office } from '../models';
 
-// Dashboard untuk admin wilayah - lihat pengajuan yang sudah approved dari kabupaten
+// Dashboard untuk admin wilayah - lihat pengajuan yang sudah di-ACC admin wilayah
 export async function getAdminWilayahDashboard(req: Request, res: Response) {
   try {
     const user = (req as any).user;
@@ -10,10 +10,10 @@ export async function getAdminWilayahDashboard(req: Request, res: Response) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    // Ambil pengajuan yang sedang diproses di level admin wilayah (tanpa approved final)
+    // Ambil pengajuan yang sudah di-ACC admin wilayah
     const pengajuanList = await Pengajuan.findAll({
       where: {
-        status: ['submitted', 'admin_wilayah_approved', 'admin_wilayah_rejected'] as any,
+        status: 'admin_wilayah_approved',
         office_id: user.office_id // Hanya lihat pengajuan dari wilayah admin
       },
       include: [
