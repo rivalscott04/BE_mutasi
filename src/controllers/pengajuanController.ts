@@ -790,7 +790,8 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
     const user = req.user;
     
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
     }
 
     const where: any = {};
@@ -828,14 +829,15 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       created_by,
       search,
       userRole: user.role,
-      whereClause: where
+      whereClause: where,
+      offset: (Number(page) - 1) * Number(limit)
     });
 
     // Build include conditions for search
     const includeConditions: any[] = [
-      { model: Pegawai, as: 'pegawai' },
-      { model: PengajuanFile, as: 'files' },
-      { model: Office, as: 'office', attributes: ['id', 'kabkota', 'name'] }
+      { model: Pegawai, as: 'pegawai', required: false },
+      { model: PengajuanFile, as: 'files', required: false },
+      { model: Office, as: 'office', attributes: ['id', 'kabkota', 'name'], required: false }
     ];
 
     // Add search functionality
@@ -868,14 +870,32 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       };
     }
 
-    const pengajuan = await Pengajuan.findAndCountAll({
-      where,
-      include: includeConditions,
-      order: [['created_at', 'DESC']],
-      limit: Number(limit),
-      offset,
-      distinct: true // Fix count issue when using includes
-    });
+    // For admin_wilayah_approved status, use a simpler approach to avoid count issues
+    let pengajuan: { count: number; rows: any[] };
+    if (status === 'admin_wilayah_approved') {
+      // Get count separately to avoid issues with includes
+      const count = await Pengajuan.count({ where });
+      
+      // Get data with includes
+      const rows = await Pengajuan.findAll({
+        where,
+        include: includeConditions,
+        order: [['created_at', 'DESC']],
+        limit: Number(limit),
+        offset
+      });
+      
+      pengajuan = { count, rows };
+    } else {
+      pengajuan = await Pengajuan.findAndCountAll({
+        where,
+        include: includeConditions,
+        order: [['created_at', 'DESC']],
+        limit: Number(limit),
+        offset,
+        distinct: true
+      });
+    }
 
     // Debug logging for query results
     console.log('📊 Query Results:', {
@@ -908,6 +928,20 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       }, {});
       
       console.log('🏢 admin_wilayah_approved by office:', officeCounts);
+      
+      // Debug: Check what the actual query returns
+      console.log('🔍 Actual query where clause:', where);
+      console.log('🔍 Include conditions:', includeConditions);
+      
+      // Test query without includes
+      const testQuery = await Pengajuan.findAndCountAll({
+        where,
+        order: [['created_at', 'DESC']],
+        limit: Number(limit),
+        offset,
+        distinct: true
+      });
+      console.log('🔍 Test query without includes - count:', testQuery.count, 'rows:', testQuery.rows.length);
     }
 
     // Additional debug: Check total count for admin_wilayah_submitted filter
