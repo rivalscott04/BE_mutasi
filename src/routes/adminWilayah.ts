@@ -7,7 +7,8 @@ import {
   rejectPengajuan,
   uploadAdminWilayahFile, 
   submitToSuperadmin,
-  getAdminWilayahHistory
+  getAdminWilayahHistory,
+  getPengajuanDataTable
 } from '../controllers/adminWilayahController';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/role';
@@ -28,6 +29,8 @@ router.use(requireRole('admin_wilayah'));
 
 // Dashboard admin wilayah
 router.get('/dashboard', getAdminWilayahDashboard);
+// Data table pengajuan untuk dashboard admin wilayah
+router.get('/pengajuan-datatable', getPengajuanDataTable);
 // Arsip/riwayat admin wilayah
 router.get('/history', getAdminWilayahHistory);
 

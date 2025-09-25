@@ -84,7 +84,7 @@ export async function getAdminWilayahDashboard(req: Request, res: Response) {
 
   } catch (error) {
     console.error('Error in getAdminWilayahDashboard:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
@@ -112,7 +112,7 @@ export async function getAdminWilayahHistory(req: Request, res: Response) {
     res.json({ success: true, pengajuan: pengajuanList });
   } catch (error) {
     console.error('Error in getAdminWilayahHistory:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
@@ -177,7 +177,7 @@ export async function getPengajuanDetail(req: Request, res: Response) {
 
   } catch (error) {
     console.error('Error in getPengajuanDetail:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
@@ -222,7 +222,7 @@ export async function approvePengajuan(req: Request, res: Response) {
 
   } catch (error) {
     console.error('Error in approvePengajuan:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
@@ -270,7 +270,7 @@ export async function rejectPengajuan(req: Request, res: Response) {
 
   } catch (error) {
     console.error('Error in rejectPengajuan:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
@@ -363,7 +363,7 @@ export async function uploadAdminWilayahFile(req: Request, res: Response) {
 
   } catch (error) {
     console.error('Error in uploadAdminWilayahFile:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
@@ -425,6 +425,90 @@ export async function submitToSuperadmin(req: Request, res: Response) {
 
   } catch (error) {
     console.error('Error in submitToSuperadmin:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+// Get pengajuan data table untuk dashboard admin wilayah
+export async function getPengajuanDataTable(req: Request, res: Response) {
+  try {
+    const user = (req as any).user;
+
+    if (user.role !== 'admin_wilayah') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    // Ambil semua pengajuan dari wilayah admin (tidak hanya yang approved)
+    const pengajuanList = await Pengajuan.findAll({
+      where: {
+        office_id: user.office_id // Hanya lihat pengajuan dari wilayah admin
+      },
+      include: [
+        { 
+          model: Pegawai, 
+          as: 'pegawai', 
+          attributes: ['nip', 'nama'] 
+        },
+        { 
+          model: Office, 
+          as: 'office', 
+          attributes: ['id', 'name', 'kabkota'] 
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    // Format data untuk datatable
+    const dataTableData = pengajuanList.map((p: any) => ({
+      id: p.id,
+      nama: p.pegawai?.nama || '-',
+      nip: p.pegawai?.nip || '-',
+      kabupaten: p.office?.kabkota || '-',
+      status: p.status,
+      jenis_jabatan: p.jenis_jabatan,
+      created_at: p.created_at,
+      updated_at: p.updated_at
+    }));
+
+    // Hitung aggregasi per status per kabupaten
+    const statusAggregation: { [kabupaten: string]: { [status: string]: number } } = {};
+    
+    dataTableData.forEach(item => {
+      const kabupaten = item.kabupaten;
+      const status = item.status;
+      
+      if (!statusAggregation[kabupaten]) {
+        statusAggregation[kabupaten] = {};
+      }
+      
+      if (!statusAggregation[kabupaten][status]) {
+        statusAggregation[kabupaten][status] = 0;
+      }
+      
+      statusAggregation[kabupaten][status]++;
+    });
+
+    // Format aggregasi untuk frontend
+    const aggregationData = Object.entries(statusAggregation).map(([kabupaten, statuses]) => ({
+      kabupaten,
+      total: Object.values(statuses).reduce((sum, count) => sum + count, 0),
+      statuses: Object.entries(statuses).map(([status, count]) => ({
+        status,
+        count
+      }))
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        pengajuan: dataTableData,
+        aggregation: aggregationData,
+        total: dataTableData.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in getPengajuanDataTable:', error);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
