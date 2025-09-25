@@ -1016,6 +1016,9 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
         acc[kab].push(row);
         return acc;
       }, {} as Record<string, any[]>);
+      
+      console.log('🔍 Backend grouped data:', groupedByKabkota);
+      console.log('🔍 Backend grouped data keys:', Object.keys(groupedByKabkota || {}));
     }
 
     const paginationData = {
@@ -1032,9 +1035,11 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       ...(groupedByKabkota ? { grouped_by_kabkota: groupedByKabkota } : {}),
       pagination: paginationData
     });
+    return;
   } catch (error) {
     console.error('Error in getAllPengajuan:', error);
     res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+    return;
   }
 }
 
