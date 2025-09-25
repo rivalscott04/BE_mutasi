@@ -50,26 +50,33 @@ const upload = multer({
       mimeType: file.mimetype,
       fieldName: file.fieldname,
       size: file.size,
+      sizeMB: (file.size / (1024 * 1024)).toFixed(2) + 'MB',
       ip: req.ip,
       userId: (req as any).user?.id
     });
 
     if (file.mimetype === 'application/pdf') {
+      logger.info('File accepted by multer filter', {
+        fileName: file.originalname,
+        size: file.size,
+        sizeMB: (file.size / (1024 * 1024)).toFixed(2) + 'MB'
+      });
       cb(null, true);
     } else {
       logger.error('File rejected - not PDF', {
         fileName: file.originalname,
         mimeType: file.mimetype,
         size: file.size,
+        sizeMB: (file.size / (1024 * 1024)).toFixed(2) + 'MB',
         ip: req.ip,
         userId: (req as any).user?.id
       });
       cb(new Error('Only PDF files are allowed'));
     }
   },
-  // Set a permissive upper bound (2MB) here; enforce per-type limits in controller
+  // Set a permissive upper bound (3MB) here; enforce per-type limits in controller
   limits: { 
-    fileSize: 2 * 1024 * 1024
+    fileSize: 3 * 1024 * 1024
   }
 });
 
@@ -89,7 +96,7 @@ const handleMulterError = (err: any, req: any, res: any, next: any) => {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ 
         success: false, 
-        message: 'File terlalu besar. Maksimal 2MB per file.' 
+        message: 'File terlalu besar. Maksimal 3MB per file.' 
       });
     }
     

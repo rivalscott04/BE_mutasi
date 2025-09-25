@@ -247,7 +247,27 @@ export async function uploadPengajuanFile(req: AuthRequest, res: Response) {
     const onePointSixMB = Math.floor(1.6 * 1024 * 1024);
     const fiveHundredKB = 500 * 1024;
     const allowedSize = file_type === 'skp_2_tahun_terakhir' ? onePointSixMB : fiveHundredKB;
+    
+    logger.info('File size validation', {
+      fileType: file_type,
+      fileSize: file.size,
+      fileSizeMB: (file.size / (1024 * 1024)).toFixed(2) + 'MB',
+      allowedSize: allowedSize,
+      allowedSizeMB: (allowedSize / (1024 * 1024)).toFixed(2) + 'MB',
+      isSKP2Tahun: file_type === 'skp_2_tahun_terakhir',
+      fileName: file.originalname
+    });
+    
     if (file.size > allowedSize) {
+      logger.error('File size exceeded limit', {
+        fileType: file_type,
+        fileSize: file.size,
+        fileSizeMB: (file.size / (1024 * 1024)).toFixed(2) + 'MB',
+        allowedSize: allowedSize,
+        allowedSizeMB: (allowedSize / (1024 * 1024)).toFixed(2) + 'MB',
+        fileName: file.originalname
+      });
+      
       return res.status(400).json({
         success: false,
         message: file_type === 'skp_2_tahun_terakhir'

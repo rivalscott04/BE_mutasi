@@ -55,20 +55,30 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
     {
       jenis_jabatan_id: 1, // Guru
-      file_type: 'surat_pengantar_permohonan_rekomendasi',
-      display_name: 'Surat Pengantar Permohonan Rekomendasi Pindah Tugas',
+      file_type: 'surat_keterangan_bebas_temuan_inspektorat',
+      display_name: 'Surat Keterangan Bebas Temuan (SKBT) - Inspektorat',
       is_required: true,
-      description: 'Surat pengantar permohonan rekomendasi pindah tugas dengan varian sesuai jabatan',
+      description: 'SKBT diterbitkan Inspektorat Jenderal Kemenag',
       is_active: true,
       created_at: new Date(),
       updated_at: new Date()
     },
     {
       jenis_jabatan_id: 1, // Guru
-      file_type: 'surat_pengantar_permohonan_penerbitan_sk',
-      display_name: 'Surat Pengantar Permohonan Penerbitan SK Pindah Tugas kepada Kepala Biro SDM Sekjen Kemenag RI',
+      file_type: 'surat_rekomendasi_kanwil_khusus',
+      display_name: 'Surat Rekomendasi Khusus dari Kanwil (Khusus Penghulu)',
       is_required: true,
-      description: 'Surat pengantar permohonan penerbitan SK untuk JFT Madya',
+      description: 'Surat rekomendasi khusus dari Kanwil Provinsi untuk jabatan Penghulu',
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date()
+    },
+    {
+      jenis_jabatan_id: 1, // Guru
+      file_type: 'hasil_assessment',
+      display_name: 'Hasil Assessment',
+      is_required: true,
+      description: 'Dokumen hasil uji kompetensi/assessment dari Kanwil/otoritas terkait',
       is_active: true,
       created_at: new Date(),
       updated_at: new Date()
