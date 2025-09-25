@@ -11,6 +11,145 @@ import { AuthRequest } from '../middleware/auth';
 import logger from '../utils/logger';
 import path from 'path';
 
+// =============== REKAP AGGREGATE (Admin Wilayah & Superadmin) ===============
+export async function getRekapAggregate(req: AuthRequest, res: Response) {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const { q, dateFrom, dateTo } = req.query as any;
+    const statusFilters = (req.query.status as any) ? ([] as string[]).concat(req.query.status as any) : undefined;
+    const kabFilters = (req.query.kabupaten as any) ? ([] as string[]).concat(req.query.kabupaten as any) : undefined;
+
+    // Build where clause for pengajuan
+    const where: any = {};
+    if (statusFilters && statusFilters.length > 0) {
+      where.status = { [Op.in]: statusFilters };
+    }
+    if (dateFrom || dateTo) {
+      where.created_at = {
+        ...(dateFrom ? { [Op.gte]: new Date(dateFrom) } : {}),
+        ...(dateTo ? { [Op.lte]: new Date(dateTo) } : {}),
+      };
+    }
+
+    // Scope: superadmin (role 'admin') melihat semua; lainnya dibatasi office_id
+    if (user.role !== 'admin' && user.office_id) {
+      where.office_id = user.office_id;
+    }
+
+    // Include for joins and optional search/kabupaten filter
+    const include: any[] = [
+      { model: Pegawai, as: 'pegawai', attributes: ['nama', 'nip'], required: false },
+      { model: Office, as: 'office', attributes: ['kabkota', 'name'], required: true }
+    ];
+    if (q) {
+      include[0] = {
+        model: Pegawai,
+        as: 'pegawai',
+        attributes: ['nama', 'nip'],
+        where: {
+          [Op.or]: [
+            { nama: { [Op.like]: `%${q}%` } },
+            { nip: { [Op.like]: `%${q}%` } }
+          ]
+        },
+        required: true
+      };
+    }
+    if (kabFilters && kabFilters.length > 0) {
+      include[1] = {
+        model: Office,
+        as: 'office',
+        attributes: ['kabkota', 'name'],
+        where: { kabkota: { [Op.in]: kabFilters } },
+        required: true
+      };
+    }
+
+    // Fetch rows (limited set is fine; aggregation performed in memory per current scale)
+    const rows = await Pengajuan.findAll({ where, include, attributes: ['id', 'status', 'created_at'], order: [['created_at', 'DESC']] });
+
+    // Aggregate by kabupaten and status
+    const map: Record<string, Record<string, number>> = {};
+    rows.forEach((r: any) => {
+      const kab = r.office?.kabkota || r.office?.name || 'Lainnya';
+      const st = r.status;
+      map[kab] = map[kab] || {};
+      map[kab][st] = (map[kab][st] || 0) + 1;
+    });
+
+    const aggregation = Object.entries(map).map(([kabupaten, statuses]) => ({
+      kabupaten,
+      total: Object.values(statuses).reduce((a: number, b: any) => a + (b as number), 0),
+      statuses: Object.entries(statuses).map(([status, count]) => ({ status, count }))
+    }));
+
+    return res.json({ success: true, data: { aggregation, total: rows.length } });
+  } catch (error) {
+    console.error('Error in getRekapAggregate:', error);
+    return res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
+export async function getRekapList(req: AuthRequest, res: Response) {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const { kabupaten, status, q, page = 1, pageSize = 25 } = req.query as any;
+    const offset = (Number(page) - 1) * Number(pageSize);
+
+    const where: any = {};
+    if (status) where.status = status;
+    if (user.role !== 'admin' && user.office_id) where.office_id = user.office_id;
+
+    const include: any[] = [
+      { model: Pegawai, as: 'pegawai', attributes: ['nama', 'nip'], required: false },
+      { model: Office, as: 'office', attributes: ['kabkota', 'name'], required: true }
+    ];
+
+    if (kabupaten) {
+      include[1] = { model: Office, as: 'office', attributes: ['kabkota', 'name'], where: { kabkota: kabupaten }, required: true };
+    }
+    if (q) {
+      include[0] = {
+        model: Pegawai,
+        as: 'pegawai',
+        attributes: ['nama', 'nip'],
+        where: {
+          [Op.or]: [
+            { nama: { [Op.like]: `%${q}%` } },
+            { nip: { [Op.like]: `%${q}%` } }
+          ]
+        },
+        required: true
+      };
+    }
+
+    const { rows, count } = await Pengajuan.findAndCountAll({ where, include, order: [['created_at', 'DESC']], limit: Number(pageSize), offset, distinct: true });
+    const data = rows.map((p: any) => ({
+      id: p.id,
+      nama: p.pegawai?.nama || '-',
+      nip: p.pegawai?.nip || '-',
+      kabupaten: p.office?.kabkota || p.office?.name || '-',
+      status: p.status,
+      jenis_jabatan: p.jenis_jabatan,
+      created_at: p.created_at,
+      updated_at: p.updated_at
+    }));
+
+    return res.json({ success: true, data: { items: data, total: count, page: Number(page), pageSize: Number(pageSize) } });
+  } catch (error) {
+    console.error('Error in getRekapList:', error);
+    return res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
 // Get pegawai grouped by kabupaten with surat generated
 export async function getPegawaiGroupedByKabupaten(req: AuthRequest, res: Response) {
   try {

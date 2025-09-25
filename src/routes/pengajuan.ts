@@ -18,7 +18,9 @@ import {
   getFilterOptions,
   updatePengajuanFiles,
   finalApprovePengajuan,
-  finalRejectPengajuan
+  finalRejectPengajuan,
+  getRekapAggregate,
+  getRekapList
 } from '../controllers/pengajuanController';
 import { authMiddleware } from '../middleware/auth';
 import logger from '../utils/logger';
@@ -201,6 +203,9 @@ router.get('/files/:file_id', authMiddleware, async (req, res) => {
 
 // Pengajuan routes - SETELAH FILE ROUTES
 router.get('/filter-options', authMiddleware, getFilterOptions);
+// Rekap endpoints (aggregate + list) - for admin_wilayah (scoped) and superadmin (all)
+router.get('/rekap/aggregate', authMiddleware, getRekapAggregate);
+router.get('/rekap/list', authMiddleware, getRekapList);
 router.get('/:pengajuan_id', authMiddleware, getPengajuanDetail);
 router.get('/', authMiddleware, getAllPengajuan);
 
