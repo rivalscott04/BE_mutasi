@@ -775,7 +775,12 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
 
     const where: any = {};
     if (status) {
-      where.status = status;
+      if (status === 'admin_wilayah_submitted') {
+        // Special case: find submitted pengajuan that have admin_wilayah files
+        where.status = 'submitted';
+      } else {
+        where.status = status;
+      }
     }
 
     // RBAC filter
@@ -830,6 +835,19 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       };
     }
 
+    // Special handling for admin_wilayah_submitted filter
+    if (status === 'admin_wilayah_submitted') {
+      // Add condition to only include pengajuan that have admin_wilayah files
+      includeConditions[1] = {
+        model: PengajuanFile,
+        as: 'files',
+        where: {
+          file_category: 'admin_wilayah'
+        },
+        required: true
+      };
+    }
+
     const pengajuan = await Pengajuan.findAndCountAll({
       where,
       include: includeConditions,
@@ -870,6 +888,44 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       }, {});
       
       console.log('🏢 admin_wilayah_approved by office:', officeCounts);
+    }
+
+    // Additional debug: Check total count for admin_wilayah_submitted filter
+    if (status === 'admin_wilayah_submitted') {
+      const totalAdminWilayahSubmitted = await Pengajuan.count({
+        where: { status: 'submitted' },
+        include: [{
+          model: PengajuanFile,
+          as: 'files',
+          where: { file_category: 'admin_wilayah' },
+          required: true
+        }]
+      });
+      console.log('🔍 Total admin_wilayah_submitted in database:', totalAdminWilayahSubmitted);
+      
+      // Check by office
+      const byOffice = await Pengajuan.findAll({
+        where: { status: 'submitted' },
+        include: [
+          { model: Office, as: 'office', attributes: ['id', 'kabkota', 'name'] },
+          {
+            model: PengajuanFile,
+            as: 'files',
+            where: { file_category: 'admin_wilayah' },
+            required: true
+          }
+        ],
+        attributes: ['id', 'office_id'],
+        raw: false
+      });
+      
+      const officeCounts = byOffice.reduce((acc: any, p: any) => {
+        const officeName = p.office?.kabkota || p.office?.name || 'Unknown';
+        acc[officeName] = (acc[officeName] || 0) + 1;
+        return acc;
+      }, {});
+      
+      console.log('🏢 admin_wilayah_submitted by office:', officeCounts);
     }
 
     // Update total_dokumen untuk setiap pengajuan berdasarkan job type configuration
