@@ -305,12 +305,20 @@ export async function uploadAdminWilayahFile(req: Request, res: Response) {
     // Validasi file type sesuai konfigurasi (resolve id dari nama jabatan)
     let jobTypeId: number | null = null;
     try {
+      console.log('🔍 Debug upload - pengajuan.jenis_jabatan:', pengajuan.jenis_jabatan);
       const jobType = await (await import('../models/JobTypeConfiguration')).default.findOne({
         where: { jenis_jabatan: pengajuan.jenis_jabatan, is_active: true }
       });
       jobTypeId = jobType ? (jobType as any).id : null;
-    } catch {}
+      console.log('🔍 Debug upload - jobType found:', jobType);
+      console.log('🔍 Debug upload - jobTypeId:', jobTypeId);
+    } catch (error) {
+      console.error('❌ Error finding job type:', error);
+    }
 
+    console.log('🔍 Debug upload - file_type:', file_type);
+    console.log('🔍 Debug upload - jobTypeId for query:', jobTypeId);
+    
     const fileConfig = await AdminWilayahFileConfig.findOne({
       where: {
         jenis_jabatan_id: jobTypeId as any,
@@ -319,7 +327,10 @@ export async function uploadAdminWilayahFile(req: Request, res: Response) {
       }
     });
 
+    console.log('🔍 Debug upload - fileConfig found:', fileConfig);
+
     if (!fileConfig) {
+      console.log('❌ No file config found for:', { jobTypeId, file_type });
       return res.status(400).json({ message: 'File type tidak valid untuk jenis jabatan ini' });
     }
 
