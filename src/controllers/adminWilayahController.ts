@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { normalizeJobTypeName } from '../utils/jobTypeAlias';
 import { Pengajuan, PengajuanFile, AdminWilayahFileConfig, Pegawai, Office } from '../models';
 
 // Dashboard untuk admin wilayah - lihat pengajuan yang sudah di-ACC admin wilayah
@@ -305,9 +306,14 @@ export async function uploadAdminWilayahFile(req: Request, res: Response) {
     // Validasi file type sesuai konfigurasi (resolve id dari nama jabatan)
     let jobTypeId: number | null = null;
     try {
-      console.log('🔍 Debug upload - pengajuan.jenis_jabatan:', pengajuan.jenis_jabatan);
+      // Normalize legacy/renamed job type names
+      const normalizedJobTypeName = normalizeJobTypeName((pengajuan as any).jenis_jabatan);
+      if (normalizedJobTypeName !== (pengajuan as any).jenis_jabatan) {
+        console.log('ℹ️ Normalized job type name:', (pengajuan as any).jenis_jabatan, '→', normalizedJobTypeName);
+      }
+      console.log('🔍 Debug upload - pengajuan.jenis_jabatan:', normalizedJobTypeName);
       const jobType = await (await import('../models/JobTypeConfiguration')).default.findOne({
-        where: { jenis_jabatan: pengajuan.jenis_jabatan, is_active: true }
+        where: { jenis_jabatan: normalizedJobTypeName, is_active: true }
       });
       jobTypeId = jobType ? (jobType as any).id : null;
       console.log('🔍 Debug upload - jobType found:', jobType);

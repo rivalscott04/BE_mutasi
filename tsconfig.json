@@ -111,5 +111,10 @@
     "skipLibCheck": true,
     "outDir": "./dist",
     "rootDir": "./src"
-  }
+  },
+  "exclude": [
+    "scripts/**/*",
+    "node_modules",
+    "dist"
+  ]
 }
