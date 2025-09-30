@@ -134,8 +134,7 @@ export async function getPengajuanDetail(req: Request, res: Response) {
         { 
           model: PengajuanFile, 
           as: 'files',
-          attributes: ['id', 'file_type', 'file_category', 'file_name', 'file_size', 'uploaded_by', 'uploaded_by_role', 'uploaded_by_name', 'uploaded_by_office', 'created_at'],
-          order: [['file_type', 'ASC']] // Urutkan berdasarkan file_type secara abjad
+          attributes: ['id', 'file_type', 'file_category', 'file_name', 'file_size', 'uploaded_by', 'uploaded_by_role', 'uploaded_by_name', 'uploaded_by_office', 'created_at']
         }
       ]
     });
@@ -161,6 +160,11 @@ export async function getPengajuanDetail(req: Request, res: Response) {
     const uploadedAdminWilayahFiles = (pengajuan as any).files?.filter((f: any) => f.file_category === 'admin_wilayah') || [];
     const requiredFiles = adminWilayahFileConfig.filter(config => config.is_required);
     const optionalFiles = adminWilayahFileConfig.filter(config => !config.is_required);
+
+    // Sort files by file_type alphabetically
+    if (pengajuan && (pengajuan as any).files) {
+      (pengajuan as any).files.sort((a: any, b: any) => a.file_type.localeCompare(b.file_type));
+    }
 
     res.json({
       success: true,
@@ -313,9 +317,9 @@ export async function uploadAdminWilayahFile(req: Request, res: Response) {
         console.log('ℹ️ Normalized job type name:', (pengajuan as any).jenis_jabatan, '→', normalizedJobTypeName);
       }
       console.log('🔍 Debug upload - pengajuan.jenis_jabatan:', normalizedJobTypeName);
-      const jobType = await (await import('../models/JobTypeConfiguration')).default.findOne({
+      const jobType = normalizedJobTypeName ? await (await import('../models/JobTypeConfiguration')).default.findOne({
         where: { jenis_jabatan: normalizedJobTypeName, is_active: true }
-      });
+      }) : null;
       jobTypeId = jobType ? (jobType as any).id : null;
       console.log('🔍 Debug upload - jobType found:', jobType);
       console.log('🔍 Debug upload - jobTypeId:', jobTypeId);

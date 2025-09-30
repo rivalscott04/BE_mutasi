@@ -793,8 +793,7 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
         { model: Pegawai, as: 'pegawai' },
         { 
           model: PengajuanFile, 
-          as: 'files',
-          order: [['file_type', 'ASC']] // Urutkan berdasarkan file_type secara abjad
+          as: 'files'
         }
       ]
     });
@@ -901,6 +900,11 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
     if (jobTypeConfig && jobTypeConfig.max_dokumen !== pengajuan.total_dokumen) {
       updatedTotalDokumen = jobTypeConfig.max_dokumen;
       console.log('🔄 Updating total_dokumen from', pengajuan.total_dokumen, 'to', updatedTotalDokumen);
+    }
+
+    // Sort files by file_type alphabetically
+    if (pengajuan && (pengajuan as any).files) {
+      (pengajuan as any).files.sort((a: any, b: any) => a.file_type.localeCompare(b.file_type));
     }
 
     res.json({ 
