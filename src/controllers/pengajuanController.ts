@@ -791,7 +791,11 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
     const pengajuan = await Pengajuan.findByPk(pengajuan_id, {
       include: [
         { model: Pegawai, as: 'pegawai' },
-        { model: PengajuanFile, as: 'files' }
+        { 
+          model: PengajuanFile, 
+          as: 'files',
+          order: [['file_type', 'ASC']] // Urutkan berdasarkan file_type secara abjad
+        }
       ]
     });
 

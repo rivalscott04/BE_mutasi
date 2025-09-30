@@ -33,10 +33,10 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
         },
         {
           jenis_jabatan_id: jobTypes[0][0].id,
-          file_type: 'surat_keterangan_kanwil',
-          display_name: 'Surat Keterangan dari Kanwil',
+          file_type: 'hasil_evaluasi_pertimbangan_baperjakat',
+          display_name: 'Hasil Evaluasi dan Pertimbangan (BAPERJAKAT)',
           is_required: false,
-          description: 'Surat keterangan resmi dari Kanwil Provinsi',
+          description: 'Hasil evaluasi dan pertimbangan BAPERJAKAT dari Kanwil Provinsi',
           is_active: true,
           created_at: new Date(),
           updated_at: new Date()
