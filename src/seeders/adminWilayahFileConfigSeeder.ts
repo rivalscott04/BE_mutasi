@@ -1,18 +1,18 @@
-import { QueryInterface } from 'sequelize';
+import { QueryInterface, QueryTypes } from 'sequelize';
 import { db } from '../models';
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
   try {
     // Get existing job types
-    const jobTypes = await db.query(
+    const jobTypes = await db.query<{ id: number; jenis_jabatan: string }>(
       'SELECT id, jenis_jabatan FROM job_type_configuration WHERE is_active = true LIMIT 3',
-      { type: 'SELECT' }
+      { type: QueryTypes.SELECT }
     );
 
-    if (jobTypes[0] && jobTypes[0].length > 0) {
+    if (jobTypes && jobTypes.length > 0) {
       const sampleConfigs = [
         {
-          jenis_jabatan_id: jobTypes[0][0].id,
+          jenis_jabatan_id: jobTypes[0].id,
           file_type: 'surat_rekomendasi_kanwil',
           display_name: 'Surat Rekomendasi Kanwil',
           is_required: true,
@@ -22,7 +22,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
           updated_at: new Date()
         },
         {
-          jenis_jabatan_id: jobTypes[0][0].id,
+          jenis_jabatan_id: jobTypes[0].id,
           file_type: 'surat_persetujuan_kepala_wilayah',
           display_name: 'Surat Persetujuan Kepala Wilayah',
           is_required: true,
@@ -32,7 +32,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
           updated_at: new Date()
         },
         {
-          jenis_jabatan_id: jobTypes[0][0].id,
+          jenis_jabatan_id: jobTypes[0].id,
           file_type: 'hasil_evaluasi_pertimbangan_baperjakat',
           display_name: 'Hasil Evaluasi dan Pertimbangan (BAPERJAKAT)',
           is_required: false,

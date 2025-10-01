@@ -8,7 +8,8 @@ import {
   uploadAdminWilayahFile, 
   submitToSuperadmin,
   getAdminWilayahHistory,
-  getPengajuanDataTable
+  getPengajuanDataTable,
+  replaceAdminWilayahFile
 } from '../controllers/adminWilayahController';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/role';
@@ -45,6 +46,9 @@ router.post('/pengajuan/:pengajuanId/reject', rejectPengajuan);
 
 // Upload file admin wilayah (OPSIONAL sesuai konfigurasi superadmin)
 router.post('/pengajuan/:pengajuanId/upload', upload.single('file'), uploadAdminWilayahFile);
+
+// Replace file kabupaten/kota (admin wilayah only - untuk file di wilayahnya)
+router.put('/pengajuan/:pengajuanId/files/:fileId/replace', upload.single('file'), replaceAdminWilayahFile);
 
 // Submit pengajuan admin wilayah ke superadmin (setelah approve/reject)
 router.post('/pengajuan/:pengajuanId/submit-to-superadmin', submitToSuperadmin);

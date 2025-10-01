@@ -1327,6 +1327,101 @@ export async function resubmitPengajuan(req: AuthRequest, res: Response) {
   }
 }
 
+// Replace pengajuan file (superadmin only)
+export async function replacePengajuanFile(req: AuthRequest, res: Response) {
+  try {
+    const { pengajuanId, fileId } = req.params;
+    const user = req.user;
+    const file = req.file;
+
+    // Validasi role - hanya superadmin
+    if (user?.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Hanya superadmin yang bisa mengganti file'
+      });
+    }
+
+    // Validasi file upload
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        message: 'File tidak ditemukan'
+      });
+    }
+
+    // Debug file info
+    console.log('🔍 Debug file upload:', {
+      originalname: file.originalname,
+      filename: file.filename,
+      mimetype: file.mimetype,
+      size: file.size,
+      fieldname: file.fieldname,
+      destination: file.destination,
+      path: file.path
+    });
+
+    // Validasi pengajuan
+    const pengajuan = await Pengajuan.findByPk(pengajuanId);
+    if (!pengajuan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pengajuan tidak ditemukan'
+      });
+    }
+
+    // Validasi status - tidak boleh draft
+    if (pengajuan.status === 'draft') {
+      return res.status(400).json({
+        success: false,
+        message: 'Tidak bisa mengganti file yang masih dalam draft. Tunggu operator submit terlebih dahulu.'
+      });
+    }
+
+    // Validasi file exists
+    const existingFile = await PengajuanFile.findByPk(fileId);
+    if (!existingFile || existingFile.pengajuan_id !== pengajuanId) {
+      return res.status(404).json({
+        success: false,
+        message: 'File tidak ditemukan'
+      });
+    }
+
+    // Simpan path file lama untuk audit
+    const oldFilePath = existingFile.file_path;
+
+    // Update file record
+    await existingFile.update({
+      file_name: file.originalname,
+      file_path: `uploads/pengajuan/${file.filename}`,
+      file_size: file.size,
+      updated_at: new Date()
+    });
+
+    // Log file replacement (optional - bisa ditambah tabel audit log)
+    console.log(`File replaced: ${fileId} by ${user.full_name} (${user.role})`);
+
+    res.json({
+      success: true,
+      message: 'File berhasil diganti',
+      data: {
+        id: existingFile.id,
+        file_name: file.originalname,
+        file_size: file.size,
+        replaced_by: user.full_name,
+        replaced_by_role: user.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in replacePengajuanFile:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Terjadi kesalahan saat mengganti file'
+    });
+  }
+}
+
 // Delete pengajuan
 export async function deletePengajuan(req: AuthRequest, res: Response) {
   try {
@@ -1655,5 +1750,6 @@ export default {
   getFilterOptions,
   updatePengajuanFiles,
   finalApprovePengajuan,
-  finalRejectPengajuan
+  finalRejectPengajuan,
+  replacePengajuanFile
 };

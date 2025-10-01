@@ -440,6 +440,118 @@ export async function submitToSuperadmin(req: Request, res: Response) {
   }
 }
 
+// Replace pengajuan file (admin wilayah only - untuk file kabupaten/kota di wilayahnya)
+export async function replaceAdminWilayahFile(req: Request, res: Response) {
+  try {
+    const { pengajuanId, fileId } = req.params;
+    const user = (req as any).user;
+    const file = req.file;
+
+    // Validasi role - hanya admin wilayah
+    if (user.role !== 'admin_wilayah') {
+      return res.status(403).json({
+        success: false,
+        message: 'Hanya admin wilayah yang bisa mengganti file'
+      });
+    }
+
+    // Validasi file upload
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        message: 'File tidak ditemukan'
+      });
+    }
+
+    // Debug file info
+    console.log('🔍 Debug admin wilayah file upload:', {
+      originalname: file.originalname,
+      filename: file.filename,
+      mimetype: file.mimetype,
+      size: file.size,
+      fieldname: file.fieldname,
+      destination: file.destination,
+      path: file.path
+    });
+
+    // Validasi pengajuan
+    const pengajuan = await Pengajuan.findByPk(pengajuanId);
+    if (!pengajuan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pengajuan tidak ditemukan'
+      });
+    }
+
+    // Validasi office_id - hanya wilayah admin wilayah
+    if (pengajuan.office_id !== user.office_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Anda hanya bisa mengganti file di wilayah Anda'
+      });
+    }
+
+    // Validasi status - tidak boleh draft
+    if (pengajuan.status === 'draft') {
+      return res.status(400).json({
+        success: false,
+        message: 'Tidak bisa mengganti file yang masih dalam draft. Tunggu operator submit terlebih dahulu.'
+      });
+    }
+
+    // Validasi file exists
+    const existingFile = await PengajuanFile.findByPk(fileId);
+    if (!existingFile || existingFile.pengajuan_id !== pengajuanId) {
+      return res.status(404).json({
+        success: false,
+        message: 'File tidak ditemukan'
+      });
+    }
+
+    // Validasi file category - admin wilayah hanya bisa ganti file kabupaten/kota
+    if (existingFile.file_category === 'admin_wilayah') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin wilayah tidak bisa mengganti file admin wilayah'
+      });
+    }
+
+    // Simpan path file lama untuk audit
+    const oldFilePath = existingFile.file_path;
+
+    // Update file record
+    await existingFile.update({
+      file_name: file.originalname,
+      file_path: `uploads/pengajuan/${file.filename}`,
+      file_size: file.size,
+      updated_at: new Date()
+    });
+
+    // Log file replacement
+    console.log(`File replaced by admin wilayah: ${fileId} by ${user.full_name} (${user.office_id})`);
+
+    res.json({
+      success: true,
+      message: 'File berhasil diganti',
+      data: {
+        id: existingFile.id,
+        file_name: file.originalname,
+        file_size: file.size,
+        replaced_by: user.full_name,
+        replaced_by_role: user.role,
+        replaced_by_office: user.office_id
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in replaceAdminWilayahFile:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Terjadi kesalahan saat mengganti file'
+    });
+  }
+}
+
 // Get pengajuan data table untuk dashboard admin wilayah
 export async function getPengajuanDataTable(req: Request, res: Response) {
   try {
@@ -523,3 +635,15 @@ export async function getPengajuanDataTable(req: Request, res: Response) {
     return res.status(500).json({ message: 'Internal server error' });
   }
 }
+
+export {
+  getAdminWilayahDashboard,
+  getAdminWilayahHistory,
+  getPengajuanDetail,
+  approvePengajuan,
+  rejectPengajuan,
+  uploadAdminWilayahFile,
+  submitToSuperadmin,
+  getPengajuanDataTable,
+  replaceAdminWilayahFile
+};

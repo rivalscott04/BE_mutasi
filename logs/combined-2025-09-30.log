@@ -1,0 +1,129 @@
+[2025-09-30T14:57:37.177Z] INFO: Login attempt
+{
+  "email": "admin.kanwil@kemenag.go.id",
+  "ip": "::1",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+}
+
+[2025-09-30T14:57:37.376Z] INFO: Login successful
+{
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "email": "admin.kanwil@kemenag.go.id",
+  "role": "admin",
+  "officeId": null,
+  "ip": "::1"
+}
+
+[2025-09-30T15:19:00.191Z] INFO: User profile accessed
+{
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "email": "admin.kanwil@kemenag.go.id",
+  "role": "admin",
+  "officeId": null
+}
+
+[2025-09-30T15:19:15.955Z] INFO: User profile accessed
+{
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "email": "admin.kanwil@kemenag.go.id",
+  "role": "admin",
+  "officeId": null
+}
+
+[2025-09-30T15:21:06.235Z] INFO: Impersonation attempt
+{
+  "adminId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "adminEmail": "admin.kanwil@kemenag.go.id",
+  "targetUserId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "ip": "::1"
+}
+
+[2025-09-30T15:21:06.244Z] INFO: Impersonation successful
+{
+  "adminId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "targetUserId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "targetEmail": "admin.lotim@kemenag.go.id",
+  "targetRole": "admin_wilayah",
+  "ip": "::1"
+}
+
+[2025-09-30T15:22:01.653Z] INFO: User profile accessed
+{
+  "userId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "email": "admin.lotim@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "22222222-2222-2222-2222-222222222222"
+}
+
+[2025-09-30T15:25:24.092Z] INFO: User profile accessed
+{
+  "userId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "email": "admin.lotim@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "22222222-2222-2222-2222-222222222222"
+}
+
+[2025-09-30T15:29:53.395Z] INFO: User profile accessed
+{
+  "userId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "email": "admin.lotim@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "22222222-2222-2222-2222-222222222222"
+}
+
+[2025-09-30T15:33:31.915Z] INFO: User profile accessed
+{
+  "userId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "email": "admin.lotim@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "22222222-2222-2222-2222-222222222222"
+}
+
+[2025-09-30T15:40:44.257Z] INFO: User profile accessed
+{
+  "userId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "email": "admin.lotim@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "22222222-2222-2222-2222-222222222222"
+}
+
+[2025-09-30T16:29:03.537Z] INFO: User profile accessed
+{
+  "userId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "email": "admin.lotim@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "22222222-2222-2222-2222-222222222222"
+}
+
+[2025-09-30T16:29:07.839Z] INFO: User profile accessed
+{
+  "userId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "email": "admin.lotim@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "22222222-2222-2222-2222-222222222222"
+}
+
+[2025-09-30T16:38:02.138Z] INFO: User profile accessed
+{
+  "userId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "email": "admin.lotim@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "22222222-2222-2222-2222-222222222222"
+}
+
+[2025-09-30T16:42:34.518Z] INFO: User profile accessed
+{
+  "userId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "email": "admin.lotim@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "22222222-2222-2222-2222-222222222222"
+}
+
+[2025-09-30T16:48:18.064Z] INFO: User profile accessed
+{
+  "userId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "email": "admin.lotim@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "22222222-2222-2222-2222-222222222222"
+}
+

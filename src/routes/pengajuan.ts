@@ -20,7 +20,8 @@ import {
   finalApprovePengajuan,
   finalRejectPengajuan,
   getRekapAggregate,
-  getRekapList
+  getRekapList,
+  replacePengajuanFile
 } from '../controllers/pengajuanController';
 import { authMiddleware } from '../middleware/auth';
 import logger from '../utils/logger';
@@ -47,12 +48,16 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage,
   fileFilter: (req, file, cb) => {
+    // Safe size calculation
+    const fileSize = file.size || 0;
+    const sizeMB = fileSize > 0 ? (fileSize / (1024 * 1024)).toFixed(2) + 'MB' : '0MB';
+    
     logger.info('File upload filter check', {
       fileName: file.originalname,
       mimeType: file.mimetype,
       fieldName: file.fieldname,
-      size: file.size,
-      sizeMB: (file.size / (1024 * 1024)).toFixed(2) + 'MB',
+      size: fileSize,
+      sizeMB: sizeMB,
       ip: req.ip,
       userId: (req as any).user?.id
     });
@@ -60,16 +65,16 @@ const upload = multer({
     if (file.mimetype === 'application/pdf') {
       logger.info('File accepted by multer filter', {
         fileName: file.originalname,
-        size: file.size,
-        sizeMB: (file.size / (1024 * 1024)).toFixed(2) + 'MB'
+        size: fileSize,
+        sizeMB: sizeMB
       });
       cb(null, true);
     } else {
       logger.error('File rejected - not PDF', {
         fileName: file.originalname,
         mimeType: file.mimetype,
-        size: file.size,
-        sizeMB: (file.size / (1024 * 1024)).toFixed(2) + 'MB',
+        size: fileSize,
+        sizeMB: sizeMB,
         ip: req.ip,
         userId: (req as any).user?.id
       });
@@ -143,6 +148,9 @@ router.put('/:pengajuan_id/update-files', authMiddleware, upload.array('files'),
 
 // File verification routes - HARUS SEBELUM ROUTE DENGAN PARAMETER
 router.put('/files/:file_id/verify', authMiddleware, verifyFile);
+
+// File replacement routes - HARUS SEBELUM ROUTE DENGAN PARAMETER
+router.put('/:pengajuan_id/files/:file_id/replace', authMiddleware, upload.single('file'), handleMulterError, replacePengajuanFile);
 
 // Download file endpoint - HARUS SEBELUM ROUTE DENGAN PARAMETER  
 router.get('/files/:file_id', authMiddleware, async (req, res) => {

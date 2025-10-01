@@ -1,0 +1,336 @@
+[2025-10-01T01:16:26.775Z] INFO: Login attempt
+{
+  "email": "admin.wilayah@kemenag.go.id",
+  "ip": "::1",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+}
+
+[2025-10-01T01:16:26.794Z] WARN: Login failed - user not found
+{
+  "email": "admin.wilayah@kemenag.go.id",
+  "ip": "::1"
+}
+
+[2025-10-01T01:16:45.922Z] INFO: Login attempt
+{
+  "email": "admin.kanwil@kemenag.go.id",
+  "ip": "::1",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+}
+
+[2025-10-01T01:16:46.075Z] INFO: Login successful
+{
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "email": "admin.kanwil@kemenag.go.id",
+  "role": "admin",
+  "officeId": null,
+  "ip": "::1"
+}
+
+[2025-10-01T01:16:53.441Z] INFO: Impersonation attempt
+{
+  "adminId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "adminEmail": "admin.kanwil@kemenag.go.id",
+  "targetUserId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "ip": "::1"
+}
+
+[2025-10-01T01:16:53.449Z] INFO: Impersonation successful
+{
+  "adminId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "targetUserId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "targetEmail": "admin.lotim@kemenag.go.id",
+  "targetRole": "admin_wilayah",
+  "ip": "::1"
+}
+
+[2025-10-01T01:33:10.424Z] INFO: User profile accessed
+{
+  "userId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "email": "admin.lotim@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "22222222-2222-2222-2222-222222222222"
+}
+
+[2025-10-01T01:43:53.253Z] INFO: User profile accessed
+{
+  "userId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "email": "admin.lotim@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "22222222-2222-2222-2222-222222222222"
+}
+
+[2025-10-01T01:49:43.170Z] INFO: Login attempt
+{
+  "email": "lotim@kemenag.go.id",
+  "ip": "::1",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+}
+
+[2025-10-01T01:49:43.275Z] INFO: Login successful
+{
+  "userId": "65a7bfb1-e97e-4af6-8c22-ff3dc7caa54c",
+  "email": "lotim@kemenag.go.id",
+  "role": "operator",
+  "officeId": "22222222-2222-2222-2222-222222222222",
+  "ip": "::1"
+}
+
+[2025-10-01T01:58:50.598Z] INFO: Login attempt
+{
+  "email": "admin.wilayah@kemenag.go.id",
+  "ip": "::1",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+}
+
+[2025-10-01T01:58:50.602Z] WARN: Login failed - user not found
+{
+  "email": "admin.wilayah@kemenag.go.id",
+  "ip": "::1"
+}
+
+[2025-10-01T01:58:56.685Z] INFO: Login attempt
+{
+  "email": "admin.kanwil@kemenag.go.id",
+  "ip": "::1",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+}
+
+[2025-10-01T01:58:56.859Z] INFO: Login successful
+{
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "email": "admin.kanwil@kemenag.go.id",
+  "role": "admin",
+  "officeId": null,
+  "ip": "::1"
+}
+
+[2025-10-01T01:59:25.525Z] INFO: Impersonation attempt
+{
+  "adminId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "adminEmail": "admin.kanwil@kemenag.go.id",
+  "targetUserId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "ip": "::1"
+}
+
+[2025-10-01T01:59:25.532Z] INFO: Impersonation successful
+{
+  "adminId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "targetUserId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "targetEmail": "admin.lotim@kemenag.go.id",
+  "targetRole": "admin_wilayah",
+  "ip": "::1"
+}
+
+[2025-10-01T02:16:30.723Z] INFO: Impersonation attempt
+{
+  "adminId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "adminEmail": "admin.kanwil@kemenag.go.id",
+  "targetUserId": "65a7bfb1-e97e-4af6-8c22-ff3dc7caa54c",
+  "ip": "::1"
+}
+
+[2025-10-01T02:16:30.731Z] INFO: Impersonation successful
+{
+  "adminId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "targetUserId": "65a7bfb1-e97e-4af6-8c22-ff3dc7caa54c",
+  "targetEmail": "lotim@kemenag.go.id",
+  "targetRole": "operator",
+  "ip": "::1"
+}
+
+[2025-10-01T02:30:04.161Z] INFO: Login attempt
+{
+  "email": "admin.kanwil@kemenag.go.id",
+  "ip": "::1",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+}
+
+[2025-10-01T02:30:04.317Z] INFO: Login successful
+{
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "email": "admin.kanwil@kemenag.go.id",
+  "role": "admin",
+  "officeId": null,
+  "ip": "::1"
+}
+
+[2025-10-01T02:31:43.262Z] INFO: Impersonation attempt
+{
+  "adminId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "adminEmail": "admin.kanwil@kemenag.go.id",
+  "targetUserId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "ip": "::1"
+}
+
+[2025-10-01T02:31:43.268Z] INFO: Impersonation successful
+{
+  "adminId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "targetUserId": "733a04f0-894d-11f0-adc3-2641994ed216",
+  "targetEmail": "admin.lotim@kemenag.go.id",
+  "targetRole": "admin_wilayah",
+  "ip": "::1"
+}
+
+[2025-10-01T03:36:27.992Z] INFO: Login attempt
+{
+  "email": "admin.mataram@kemenag.go.id",
+  "ip": "::1",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+}
+
+[2025-10-01T03:36:28.070Z] INFO: Login successful
+{
+  "userId": "7339d68a-894d-11f0-adc3-2641994ed216",
+  "email": "admin.mataram@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "11111111-1111-1111-1111-111111111111",
+  "ip": "::1"
+}
+
+[2025-10-01T06:01:40.285Z] INFO: User profile accessed
+{
+  "userId": "7339d68a-894d-11f0-adc3-2641994ed216",
+  "email": "admin.mataram@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "11111111-1111-1111-1111-111111111111"
+}
+
+[2025-10-01T06:01:44.022Z] INFO: User profile accessed
+{
+  "userId": "7339d68a-894d-11f0-adc3-2641994ed216",
+  "email": "admin.mataram@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "11111111-1111-1111-1111-111111111111"
+}
+
+[2025-10-01T06:10:58.693Z] INFO: User profile accessed
+{
+  "userId": "7339d68a-894d-11f0-adc3-2641994ed216",
+  "email": "admin.mataram@kemenag.go.id",
+  "role": "admin_wilayah",
+  "officeId": "11111111-1111-1111-1111-111111111111"
+}
+
+[2025-10-01T06:12:45.541Z] INFO: Login attempt
+{
+  "email": "admin.kanwil@kemenag.go.id",
+  "ip": "::1",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+}
+
+[2025-10-01T06:12:45.662Z] INFO: Login successful
+{
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "email": "admin.kanwil@kemenag.go.id",
+  "role": "admin",
+  "officeId": null,
+  "ip": "::1"
+}
+
+[2025-10-01T06:13:08.251Z] INFO: File upload filter check
+{
+  "fileName": "Hj. RAHMI KUSBANDIAH, S.Ag_11zon.pdf",
+  "mimeType": "application/pdf",
+  "fieldName": "file",
+  "sizeMB": "NaNMB",
+  "ip": "::1",
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc"
+}
+
+[2025-10-01T06:13:08.252Z] INFO: File accepted by multer filter
+{
+  "fileName": "Hj. RAHMI KUSBANDIAH, S.Ag_11zon.pdf",
+  "sizeMB": "NaNMB"
+}
+
+[2025-10-01T06:13:16.038Z] INFO: User profile accessed
+{
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "email": "admin.kanwil@kemenag.go.id",
+  "role": "admin",
+  "officeId": null
+}
+
+[2025-10-01T06:13:24.574Z] INFO: File upload filter check
+{
+  "fileName": "Hj. RAHMI KUSBANDIAH, S.Ag_11zon.pdf",
+  "mimeType": "application/pdf",
+  "fieldName": "file",
+  "sizeMB": "NaNMB",
+  "ip": "::1",
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc"
+}
+
+[2025-10-01T06:13:24.575Z] INFO: File accepted by multer filter
+{
+  "fileName": "Hj. RAHMI KUSBANDIAH, S.Ag_11zon.pdf",
+  "sizeMB": "NaNMB"
+}
+
+[2025-10-01T06:14:47.027Z] INFO: User profile accessed
+{
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "email": "admin.kanwil@kemenag.go.id",
+  "role": "admin",
+  "officeId": null
+}
+
+[2025-10-01T06:14:53.040Z] INFO: User profile accessed
+{
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "email": "admin.kanwil@kemenag.go.id",
+  "role": "admin",
+  "officeId": null
+}
+
+[2025-10-01T06:15:36.547Z] INFO: User profile accessed
+{
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "email": "admin.kanwil@kemenag.go.id",
+  "role": "admin",
+  "officeId": null
+}
+
+[2025-10-01T06:15:43.575Z] INFO: File upload filter check
+{
+  "fileName": "Hj. RAHMI KUSBANDIAH, S.Ag_11zon.pdf",
+  "mimeType": "application/pdf",
+  "fieldName": "file",
+  "sizeMB": "NaNMB",
+  "ip": "::1",
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc"
+}
+
+[2025-10-01T06:15:43.576Z] INFO: File accepted by multer filter
+{
+  "fileName": "Hj. RAHMI KUSBANDIAH, S.Ag_11zon.pdf",
+  "sizeMB": "NaNMB"
+}
+
+[2025-10-01T06:20:31.745Z] INFO: User profile accessed
+{
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc",
+  "email": "admin.kanwil@kemenag.go.id",
+  "role": "admin",
+  "officeId": null
+}
+
+[2025-10-01T06:20:47.479Z] INFO: File upload filter check
+{
+  "fileName": "Hj. RAHMI KUSBANDIAH, S.Ag_11zon.pdf",
+  "mimeType": "application/pdf",
+  "fieldName": "file",
+  "size": 0,
+  "sizeMB": "0MB",
+  "ip": "::1",
+  "userId": "c741a5e4-8882-4a01-b2c1-fb367f5c8fcc"
+}
+
+[2025-10-01T06:20:47.481Z] INFO: File accepted by multer filter
+{
+  "fileName": "Hj. RAHMI KUSBANDIAH, S.Ag_11zon.pdf",
+  "size": 0,
+  "sizeMB": "0MB"
+}
+
