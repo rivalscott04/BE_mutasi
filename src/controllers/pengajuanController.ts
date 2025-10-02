@@ -330,6 +330,38 @@ export async function createPengajuan(req: AuthRequest, res: Response) {
       }
     }
 
+    // Validasi duplikasi: cek apakah pegawai sudah punya pengajuan untuk jenis jabatan yang sama
+    console.log('🔍 Checking for duplicate pengajuan:', {
+      pegawai_nip,
+      jenis_jabatan: finalJenisJabatan,
+      office_id: user.office_id
+    });
+
+    const existingPengajuan = await Pengajuan.findOne({
+      where: {
+        pegawai_nip: pegawai_nip,
+        jenis_jabatan: finalJenisJabatan,
+        office_id: user.office_id || null
+      }
+    });
+
+    if (existingPengajuan) {
+      console.log('❌ Duplicate pengajuan found:', {
+        existing_id: existingPengajuan.id,
+        existing_status: existingPengajuan.status,
+        pegawai_nip,
+        jenis_jabatan: finalJenisJabatan,
+        office_id: user.office_id
+      });
+      
+      return res.status(400).json({ 
+        success: false, 
+        message: `Pegawai ${pegawai.nama} (NIP: ${pegawai_nip}) sudah memiliki pengajuan untuk jabatan "${finalJenisJabatan}". Tidak dapat membuat pengajuan duplikat.` 
+      });
+    }
+
+    console.log('✅ No duplicate found, proceeding with pengajuan creation');
+
     // Create pengajuan (office_id mengikuti user)
     const pengajuan = await Pengajuan.create({
       pegawai_nip,
