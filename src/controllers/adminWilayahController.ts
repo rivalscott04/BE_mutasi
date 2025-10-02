@@ -59,6 +59,12 @@ export async function getAdminWilayahDashboard(req: Request, res: Response) {
           required: requiredCount,
           approved: approvedAwFiles
         },
+        // Tambahkan uploadProgress untuk konsistensi dengan upload page
+        uploadProgress: {
+          required: approvedAwFiles, // file yang sudah diupload
+          total: requiredCount,      // total file yang dibutuhkan
+          isComplete: approvedAwFiles >= requiredCount
+        },
         kabupaten_files_count: kabupatenFiles
       };
     }));
