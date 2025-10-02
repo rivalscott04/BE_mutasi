@@ -824,6 +824,7 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
     const pengajuan = await Pengajuan.findByPk(pengajuan_id, {
       include: [
         { model: Pegawai, as: 'pegawai' },
+        { model: Office, as: 'office', attributes: ['id', 'name', 'kabkota', 'address'] },
         { 
           model: PengajuanFile, 
           as: 'files'
