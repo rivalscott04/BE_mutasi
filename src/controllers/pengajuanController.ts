@@ -7,6 +7,7 @@ import JobTypeConfiguration from '../models/JobTypeConfiguration';
 import User from '../models/User';
 import Office from '../models/Office';
 import { Op } from 'sequelize';
+import { db } from '../models/index';
 import { AuthRequest } from '../middleware/auth';
 import logger from '../utils/logger';
 import path from 'path';
@@ -1533,9 +1534,18 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    // Hanya admin yang bisa akses filter options
-    if (user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Only admin can access filter options' });
+    // Semua user yang authenticated bisa akses filter options
+    // (tidak perlu restrict ke admin saja karena filter options berguna untuk semua user)
+    
+    // For admin_wilayah, we need to ensure user has office_id loaded
+    if (user.role === 'admin_wilayah' && !user.office_id) {
+      const userWithOffice = await User.findByPk(user.id, {
+        include: [{ model: Office, as: 'office' }]
+      });
+      if (userWithOffice) {
+        user.office_id = userWithOffice.office_id;
+        console.log('🔍 Loaded office_id for admin_wilayah:', user.office_id);
+      }
     }
 
     // Get unique created_by from pengajuan
@@ -1553,17 +1563,85 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
       raw: true
     });
 
+    // Build where clause based on user role for status filtering
+    let whereClause: any = {};
+    
+    console.log('🔍 User role:', user.role, 'Office ID:', user.office_id, 'User ID:', user.id);
+    
+    // For admin_wilayah, only show data from their office/wilayah
+    if (user.role === 'admin_wilayah' && user.office_id) {
+      whereClause.office_id = user.office_id;
+      console.log('🔍 Admin wilayah filter - office_id:', user.office_id);
+    }
+    
+    // For operator, only show data they created
+    if (user.role === 'operator') {
+      whereClause.created_by = user.id;
+      console.log('🔍 Operator filter - created_by:', user.id);
+    }
+    
+    // For read-only user (admin pusat), only show final_approved
+    if (user.role === 'user') {
+      whereClause.status = 'final_approved';
+      console.log('🔍 Read-only user filter - status: final_approved');
+    }
+    
+    console.log('🔍 Where clause for status filter:', whereClause);
+
+    // Get unique statuses from pengajuan with count - only show statuses that actually exist in database
+    const statusData = await Pengajuan.findAll({
+      attributes: [
+        'status',
+        [db.fn('COUNT', db.col('id')), 'count']
+      ],
+      where: whereClause,
+      group: ['status'],
+      having: db.where(db.fn('COUNT', db.col('id')), '>', 0),
+      raw: true,
+      order: [['status', 'ASC']]
+    });
+
+    // Format status options with count - only include statuses that exist in database
+    const statusOptions = statusData
+      .filter(item => item.status && item.status.trim() !== '') // Filter out null/empty statuses
+      .map(item => ({
+        value: item.status,
+        label: getStatusDisplayName(item.status),
+        count: parseInt((item as any).count as string)
+      }));
+
+    console.log('🔍 Backend - Status data from DB:', statusData);
+    console.log('🔍 Backend - Formatted status options:', statusOptions);
 
     res.json({
       success: true,
       data: {
-        users: users
+        users: users,
+        statuses: statusOptions
       }
     });
   } catch (error) {
     console.error('Error in getFilterOptions:', error);
     res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
   }
+}
+
+// Helper function to get display name for status
+function getStatusDisplayName(status: string): string {
+  const statusMap: Record<string, string> = {
+    'draft': 'Draft',
+    'submitted': 'Diajukan',
+    'approved': 'Disetujui',
+    'rejected': 'Ditolak',
+    'resubmitted': 'Diajukan Ulang',
+    'admin_wilayah_approved': 'Disetujui Admin Wilayah',
+    'admin_wilayah_rejected': 'Ditolak Admin Wilayah',
+    'admin_wilayah_submitted': 'Pengajuan Admin Wilayah',
+    'final_approved': 'Final Approved',
+    'final_rejected': 'Final Rejected'
+  };
+  
+  return statusMap[status] || status;
 }
 
 // Generate laporan cetak
