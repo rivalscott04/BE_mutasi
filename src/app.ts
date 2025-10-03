@@ -12,9 +12,11 @@ import jobTypeConfigRouter from './routes/jobTypeConfig';
 import adminWilayahRouter from './routes/adminWilayah';
 import adminWilayahFileConfigRouter from './routes/adminWilayahFileConfig';
 import publicRouter from './routes/public';
+import maintenanceRouter from './routes/maintenance';
 import { sessionMiddleware, trackImpersonation } from './middleware/sessionManager';
 import { bypassOfficeFilterForAdmin } from './middleware/adminAccess';
 import { authMiddleware } from './middleware/auth';
+import { maintenanceMiddleware } from './middleware/maintenance';
 import logger from './utils/logger';
 
 const app = express();
@@ -52,6 +54,9 @@ app.use(express.urlencoded({ extended: true }));
 // Impersonation tracking middleware
 app.use(trackImpersonation);
 
+// Maintenance mode middleware (before auth routes)
+app.use(maintenanceMiddleware);
+
 app.use('/api/auth', authRouter);
 
 // Public routes (no authentication required)
@@ -71,6 +76,9 @@ app.use('/api/admin-wilayah', adminWilayahRouter);
 
 // Admin Wilayah File Config routes - dipindah ke level yang sama
 app.use('/api/admin-wilayah-file-config', authMiddleware, bypassOfficeFilterForAdmin, adminWilayahFileConfigRouter);
+
+// Maintenance routes
+app.use('/api/maintenance', maintenanceRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

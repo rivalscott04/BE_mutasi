@@ -8,6 +8,7 @@ import Pengajuan from './Pengajuan';
 import PengajuanFile from './PengajuanFile';
 import JobTypeConfiguration from './JobTypeConfiguration';
 import AdminWilayahFileConfig from './AdminWilayahFileConfig';
+import Maintenance from './Maintenance';
 
 // Relasi User - Office
 User.belongsTo(Office, { foreignKey: 'office_id', as: 'office' });
@@ -55,6 +56,9 @@ JobTypeConfiguration.hasMany(AdminWilayahFileConfig, { foreignKey: 'jenis_jabata
 PengajuanFile.belongsTo(User, { foreignKey: 'uploaded_by', as: 'uploader' });
 User.hasMany(PengajuanFile, { foreignKey: 'uploaded_by', as: 'uploaded_files' });
 
+// Note: Maintenance model tidak menggunakan foreign key constraint
+// Referential integrity dihandle di application level
+
 export { 
   db, 
   User, 
@@ -65,5 +69,6 @@ export {
   Pengajuan, 
   PengajuanFile, 
   JobTypeConfiguration,
-  AdminWilayahFileConfig
+  AdminWilayahFileConfig,
+  Maintenance
 }; 
