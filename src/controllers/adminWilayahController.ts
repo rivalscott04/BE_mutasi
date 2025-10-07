@@ -529,8 +529,7 @@ export async function replaceAdminWilayahFile(req: Request, res: Response) {
     await existingFile.update({
       file_name: file.originalname,
       file_path: `uploads/pengajuan/${file.filename}`,
-      file_size: file.size,
-      updated_at: new Date()
+      file_size: file.size
     });
 
     // Log file replacement
@@ -641,15 +640,3 @@ export async function getPengajuanDataTable(req: Request, res: Response) {
     return res.status(500).json({ message: 'Internal server error' });
   }
 }
-
-export {
-  getAdminWilayahDashboard,
-  getAdminWilayahHistory,
-  getPengajuanDetail,
-  approvePengajuan,
-  rejectPengajuan,
-  uploadAdminWilayahFile,
-  submitToSuperadmin,
-  getPengajuanDataTable,
-  replaceAdminWilayahFile
-};
