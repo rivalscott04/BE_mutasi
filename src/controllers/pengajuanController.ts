@@ -1415,9 +1415,10 @@ export async function replacePengajuanFile(req: AuthRequest, res: Response) {
     // Validasi file exists
     const existingFile = await PengajuanFile.findByPk(fileId);
     if (!existingFile || existingFile.pengajuan_id !== pengajuanId) {
+      console.log('❌ File not found:', { fileId, pengajuanId, existingFile: !!existingFile });
       return res.status(404).json({
         success: false,
-        message: 'File tidak ditemukan'
+        message: 'File tidak ditemukan atau tidak memiliki akses'
       });
     }
 
