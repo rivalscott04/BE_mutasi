@@ -356,21 +356,54 @@ export async function uploadAdminWilayahFile(req: Request, res: Response) {
       return res.status(400).json({ message: 'File tidak ditemukan' });
     }
 
-    // Buat record file
-    const fileRecord = await PengajuanFile.create({
-      pengajuan_id: pengajuanId,
-      file_type,
-      file_category: 'admin_wilayah',
-      file_name: req.file.originalname,
-      file_path: `uploads/pengajuan/${req.file.filename}`,
-      file_size: req.file.size,
-      upload_status: 'uploaded',
-      verification_notes: description,
-      uploaded_by: user.id,
-      uploaded_by_role: 'admin_wilayah',
-      uploaded_by_name: user.full_name,
-      uploaded_by_office: user.office_id
+    // Cek apakah sudah ada file dengan file_type yang sama untuk pengajuan ini
+    const existingFile = await PengajuanFile.findOne({
+      where: {
+        pengajuan_id: pengajuanId,
+        file_type,
+        file_category: 'admin_wilayah'
+      }
     });
+
+    let fileRecord;
+
+    if (existingFile) {
+      // Update file existing (replace)
+      console.log(`🔄 Replacing existing admin wilayah file: ${file_type} for pengajuan ${pengajuanId}`);
+      await existingFile.update({
+        file_name: req.file.originalname,
+        file_path: `uploads/pengajuan/${req.file.filename}`,
+        file_size: req.file.size,
+        upload_status: 'uploaded',
+        verification_notes: description,
+        uploaded_by: user.id,
+        uploaded_by_role: 'admin_wilayah',
+        uploaded_by_name: user.full_name,
+        uploaded_by_office: user.office_id,
+        // Reset verification status saat file diganti
+        verification_status: 'pending',
+        verified_by: undefined,
+        verified_at: undefined
+      });
+      fileRecord = existingFile;
+    } else {
+      // Create file baru
+      console.log(`➕ Creating new admin wilayah file: ${file_type} for pengajuan ${pengajuanId}`);
+      fileRecord = await PengajuanFile.create({
+        pengajuan_id: pengajuanId,
+        file_type,
+        file_category: 'admin_wilayah',
+        file_name: req.file.originalname,
+        file_path: `uploads/pengajuan/${req.file.filename}`,
+        file_size: req.file.size,
+        upload_status: 'uploaded',
+        verification_notes: description,
+        uploaded_by: user.id,
+        uploaded_by_role: 'admin_wilayah',
+        uploaded_by_name: user.full_name,
+        uploaded_by_office: user.office_id
+      });
+    }
 
     res.json({
       success: true,
