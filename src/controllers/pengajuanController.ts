@@ -1413,12 +1413,34 @@ export async function replacePengajuanFile(req: AuthRequest, res: Response) {
     }
 
     // Validasi file exists
+    console.log('🔍 Looking for file:', { fileId, pengajuanId, userRole: user?.role });
+    
     const existingFile = await PengajuanFile.findByPk(fileId);
-    if (!existingFile || existingFile.pengajuan_id !== pengajuanId) {
-      console.log('❌ File not found:', { fileId, pengajuanId, existingFile: !!existingFile });
+    console.log('🔍 File found in DB:', { 
+      found: !!existingFile, 
+      fileId: existingFile?.id,
+      pengajuanId: existingFile?.pengajuan_id,
+      fileCategory: existingFile?.file_category,
+      fileType: existingFile?.file_type,
+      fileName: existingFile?.file_name
+    });
+    
+    if (!existingFile) {
+      console.log('❌ File not found in database:', { fileId });
       return res.status(404).json({
         success: false,
-        message: 'File tidak ditemukan atau tidak memiliki akses'
+        message: 'File tidak ditemukan di database'
+      });
+    }
+    
+    if (existingFile.pengajuan_id !== pengajuanId) {
+      console.log('❌ File pengajuan_id mismatch:', { 
+        filePengajuanId: existingFile.pengajuan_id, 
+        requestPengajuanId: pengajuanId 
+      });
+      return res.status(404).json({
+        success: false,
+        message: 'File tidak terkait dengan pengajuan ini'
       });
     }
 
