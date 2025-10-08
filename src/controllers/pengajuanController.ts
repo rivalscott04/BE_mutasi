@@ -1421,14 +1421,50 @@ export async function replacePengajuanFile(req: AuthRequest, res: Response) {
       });
     }
 
+    // Debug file category untuk super admin
+    console.log('🔍 Super admin replacing file:', {
+      fileId,
+      fileCategory: existingFile.file_category,
+      fileType: existingFile.file_type,
+      fileName: existingFile.file_name
+    });
+
     // Simpan path file lama untuk audit
     const oldFilePath = existingFile.file_path;
 
-    // Update file record
+    // Untuk file admin wilayah, pastikan tidak ada duplikasi dengan file type yang sama
+    if (existingFile.file_category === 'admin_wilayah') {
+      // Cek apakah ada file lain dengan file_type yang sama
+      const duplicateFiles = await PengajuanFile.findAll({
+        where: {
+          pengajuan_id: pengajuanId,
+          file_type: existingFile.file_type,
+          file_category: 'admin_wilayah',
+          id: { [require('sequelize').Op.ne]: fileId } // Exclude current file
+        }
+      });
+      
+      // Hapus file duplikat jika ada
+      if (duplicateFiles.length > 0) {
+        console.log(`🗑️ Removing ${duplicateFiles.length} duplicate admin wilayah files for type: ${existingFile.file_type}`);
+        await PengajuanFile.destroy({
+          where: {
+            id: { [require('sequelize').Op.in]: duplicateFiles.map(f => f.id) }
+          }
+        });
+      }
+    }
+
+    // Update file record - untuk file admin wilayah, pastikan tidak ada duplikasi
     await existingFile.update({
       file_name: file.originalname,
       file_path: `uploads/pengajuan/${file.filename}`,
-      file_size: file.size
+      file_size: file.size,
+      // Reset verification status saat file diganti
+      verification_status: 'pending',
+      verified_by: undefined,
+      verification_notes: undefined,
+      verified_at: undefined
     });
 
     // Log file replacement (optional - bisa ditambah tabel audit log)
