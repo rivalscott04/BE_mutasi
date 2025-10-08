@@ -9,6 +9,7 @@ import PengajuanFile from './PengajuanFile';
 import JobTypeConfiguration from './JobTypeConfiguration';
 import AdminWilayahFileConfig from './AdminWilayahFileConfig';
 import Maintenance from './Maintenance';
+import PengajuanAuditLog, { initPengajuanAuditLog } from './PengajuanAuditLog';
 
 // Relasi User - Office
 User.belongsTo(Office, { foreignKey: 'office_id', as: 'office' });
@@ -56,6 +57,17 @@ JobTypeConfiguration.hasMany(AdminWilayahFileConfig, { foreignKey: 'jenis_jabata
 PengajuanFile.belongsTo(User, { foreignKey: 'uploaded_by', as: 'uploader' });
 User.hasMany(PengajuanFile, { foreignKey: 'uploaded_by', as: 'uploaded_files' });
 
+// Initialize models after all relations are set up
+initPengajuanAuditLog(db);
+
+// Relasi PengajuanAuditLog - Pengajuan (setelah model diinisialisasi)
+PengajuanAuditLog.belongsTo(Pengajuan, { foreignKey: 'pengajuan_id', as: 'pengajuan' });
+Pengajuan.hasMany(PengajuanAuditLog, { foreignKey: 'pengajuan_id', as: 'audit_logs', onDelete: 'CASCADE' });
+
+// Relasi PengajuanAuditLog - User (changed_by)
+PengajuanAuditLog.belongsTo(User, { foreignKey: 'changed_by', as: 'changer' });
+User.hasMany(PengajuanAuditLog, { foreignKey: 'changed_by', as: 'audit_changes' });
+
 // Note: Maintenance model tidak menggunakan foreign key constraint
 // Referential integrity dihandle di application level
 
@@ -70,5 +82,6 @@ export {
   PengajuanFile, 
   JobTypeConfiguration,
   AdminWilayahFileConfig,
-  Maintenance
+  Maintenance,
+  PengajuanAuditLog
 }; 

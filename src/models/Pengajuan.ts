@@ -28,6 +28,7 @@ interface PengajuanAttributes {
   pegawai_nip: string;
   total_dokumen: number;
   jenis_jabatan: string;
+  jabatan_id?: number;
    status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted' | 'admin_wilayah_approved' | 'admin_wilayah_rejected' | 'final_approved' | 'final_rejected';
   catatan?: string;
   rejection_reason?: string;
@@ -59,6 +60,7 @@ class Pengajuan extends Model<PengajuanAttributes, PengajuanCreationAttributes> 
   public pegawai_nip!: string;
   public total_dokumen!: number;
   public jenis_jabatan!: string;
+  public jabatan_id?: number;
   public status!: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted' | 'admin_wilayah_approved' | 'admin_wilayah_rejected' | 'final_approved' | 'final_rejected';
   public catatan?: string;
   public rejection_reason?: string;
@@ -100,6 +102,10 @@ Pengajuan.init({
   jenis_jabatan: { 
     type: DataTypes.STRING(50), 
     allowNull: false 
+  },
+  jabatan_id: { 
+    type: DataTypes.INTEGER, 
+    allowNull: true 
   },
   status: { 
     type: DataTypes.ENUM('draft', 'submitted', 'approved', 'rejected', 'resubmitted', 'admin_wilayah_approved', 'admin_wilayah_rejected', 'final_approved', 'final_rejected'), 

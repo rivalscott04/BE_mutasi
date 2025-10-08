@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Pengajuan from '../models/Pengajuan';
 import PengajuanFile from '../models/PengajuanFile';
+import PengajuanAuditLog from '../models/PengajuanAuditLog';
 import Pegawai from '../models/Pegawai';
 import Letter from '../models/Letter';
 import JobTypeConfiguration from '../models/JobTypeConfiguration';
@@ -11,6 +12,7 @@ import { db } from '../models/index';
 import { AuthRequest } from '../middleware/auth';
 import logger from '../utils/logger';
 import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 // =============== REKAP AGGREGATE (Admin Wilayah & Superadmin) ===============
 export async function getRekapAggregate(req: AuthRequest, res: Response) {
@@ -1945,6 +1947,155 @@ export async function finalRejectPengajuan(req: AuthRequest, res: Response) {
   }
 }
 
+// Edit jabatan pengajuan oleh superadmin
+export async function editJabatanPengajuan(req: AuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    const { jabatan_id, jenis_jabatan, reason } = req.body;
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Hanya superadmin yang bisa edit jabatan
+    if (user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only superadmin can edit jabatan' });
+    }
+
+    if (!jabatan_id || !jenis_jabatan) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'jabatan_id dan jenis_jabatan wajib diisi' 
+      });
+    }
+
+    if (!reason || reason.trim() === '') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Alasan perubahan jabatan wajib diisi' 
+      });
+    }
+
+    const pengajuan = await Pengajuan.findByPk(id);
+    if (!pengajuan) {
+      return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
+    }
+
+    // Simpan nilai lama untuk audit log
+    const oldJabatanId = pengajuan.jabatan_id;
+    const oldJenisJabatan = pengajuan.jenis_jabatan;
+
+    // Update jabatan pengajuan
+    await pengajuan.update({
+      jabatan_id: jabatan_id,
+      jenis_jabatan: jenis_jabatan
+    });
+
+    // Buat audit log
+    await PengajuanAuditLog.create({
+      id: uuidv4(),
+      pengajuan_id: id,
+      action: 'jabatan_changed',
+      field_name: 'jabatan',
+      old_value: JSON.stringify({ jabatan_id: oldJabatanId, jenis_jabatan: oldJenisJabatan }),
+      new_value: JSON.stringify({ jabatan_id, jenis_jabatan }),
+      reason: reason.trim(),
+      changed_by: user.id,
+      changed_by_name: user.full_name
+    });
+
+    logger.info('Jabatan pengajuan changed by superadmin', {
+      pengajuanId: id,
+      oldJabatan: { jabatan_id: oldJabatanId, jenis_jabatan: oldJenisJabatan },
+      newJabatan: { jabatan_id, jenis_jabatan },
+      changedBy: user.id,
+      reason: reason.trim()
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Jabatan pengajuan berhasil diubah',
+      data: {
+        pengajuan,
+        old_jabatan: { jabatan_id: oldJabatanId, jenis_jabatan: oldJenisJabatan },
+        new_jabatan: { jabatan_id, jenis_jabatan }
+      }
+    });
+  } catch (error) {
+    console.error('Error in editJabatanPengajuan:', error);
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
+// Get audit log untuk pengajuan
+export async function getPengajuanAuditLog(req: AuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Hanya superadmin yang bisa lihat audit log
+    if (user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only superadmin can view audit log' });
+    }
+
+    const pengajuan = await Pengajuan.findByPk(id);
+    if (!pengajuan) {
+      return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
+    }
+
+    const auditLogs = await PengajuanAuditLog.findAll({
+      where: { pengajuan_id: id },
+      order: [['changed_at', 'DESC']],
+      include: [
+        { model: User, as: 'changer', attributes: ['id', 'full_name', 'email'] }
+      ]
+    });
+
+    res.json({ 
+      success: true, 
+      data: auditLogs
+    });
+  } catch (error) {
+    console.error('Error in getPengajuanAuditLog:', error);
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
+// Get available jabatan untuk edit
+export async function getAvailableJabatan(req: AuthRequest, res: Response) {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Hanya superadmin yang bisa lihat daftar jabatan
+    if (user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only superadmin can view available jabatan' });
+    }
+
+    const jobTypes = await JobTypeConfiguration.findAll({
+      where: { is_active: true },
+      order: [['jenis_jabatan', 'ASC']],
+      attributes: ['id', 'jenis_jabatan', 'min_dokumen', 'max_dokumen', 'required_files']
+    });
+
+    res.json({ 
+      success: true, 
+      data: jobTypes
+    });
+  } catch (error) {
+    console.error('Error in getAvailableJabatan:', error);
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
 export default {
   getPegawaiGroupedByKabupaten,
   createPengajuan,
@@ -1962,5 +2113,8 @@ export default {
   updatePengajuanFiles,
   finalApprovePengajuan,
   finalRejectPengajuan,
-  replacePengajuanFile
+  replacePengajuanFile,
+  editJabatanPengajuan,
+  getPengajuanAuditLog,
+  getAvailableJabatan
 };

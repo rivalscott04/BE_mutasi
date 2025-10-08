@@ -21,7 +21,10 @@ import {
   finalRejectPengajuan,
   getRekapAggregate,
   getRekapList,
-  replacePengajuanFile
+  replacePengajuanFile,
+  editJabatanPengajuan,
+  getPengajuanAuditLog,
+  getAvailableJabatan
 } from '../controllers/pengajuanController';
 import { authMiddleware } from '../middleware/auth';
 import logger from '../utils/logger';
@@ -225,6 +228,15 @@ router.put('/:id/resubmit', authMiddleware, resubmitPengajuan);
 // Final approval system routes (superadmin only)
 router.post('/:id/final-approve', authMiddleware, finalApprovePengajuan);
 router.post('/:id/final-reject', authMiddleware, finalRejectPengajuan);
+
+// Edit jabatan route (superadmin only)
+router.put('/:id/edit-jabatan', authMiddleware, editJabatanPengajuan);
+
+// Get audit log route (superadmin only)
+router.get('/:id/audit-log', authMiddleware, getPengajuanAuditLog);
+
+// Get available jabatan route (superadmin only)
+router.get('/available-jabatan', authMiddleware, getAvailableJabatan);
 
 router.delete('/:id', authMiddleware, deletePengajuan);
 
