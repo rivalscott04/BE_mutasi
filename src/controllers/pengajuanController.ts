@@ -14,6 +14,46 @@ import logger from '../utils/logger';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
+// Helper function to format file names to user-friendly format
+function formatFileNameToUserFriendly(fileName: string): string {
+  console.log('Formatting file name:', fileName);
+  const fileMapping: { [key: string]: string } = {
+    // SK (Surat Keputusan)
+    'surat_keputusan_kenaikan_pangkat_terakhir': 'SK Kenaikan Pangkat Terakhir',
+    'surat_keputusan_kenaikan_pangkat_ter': 'SK Kenaikan Pangkat Terakhir',
+    'surat_keputusan_pns': 'SK PNS',
+    'surat_keputusan_cpns': 'SK CPNS',
+    'surat_keputusan_jabatan_terakhir': 'SK Jabatan Terakhir',
+    
+    // Surat Keterangan
+    'surat_keterangan_anjab_abk_instansi_asal': 'SK Anjab ABK Instansi Asal',
+    'surat_keterangan_anjab_abk_instansi_penerima': 'SK Anjab ABK Instansi Penerima',
+    'surat_keterangan_anjab_abk_instansi_pembina': 'SK Anjab ABK Instansi Pembina',
+    'surat_keterangan_anjab_abk_instansi_a': 'SK Anjab ABK Instansi A',
+    'surat_keterangan_anjab_abk_instansi_p': 'SK Anjab ABK Instansi P',
+    
+    // Surat Lainnya
+    'surat_rekomendasi_instansi_pembina': 'Surat Rekomendasi Instansi Pembina',
+    'surat_persetujuan_mutasi_asal': 'Surat Persetujuan Mutasi Asal',
+    'surat_permohonan_dari_yang_bersangkut': 'Surat Permohonan dari Yang Bersangkutan',
+    'surat_permohonan_dari_yang_bersangk': 'Surat Permohonan dari Yang Bersangkutan',
+    'surat_lolos_butuh_ppk': 'Surat Lolos Butuh PPK',
+    
+    // Anjab ABK
+    'anjab_abk_instansi_asal': 'Anjab ABK Instansi Asal',
+    'anjab_abk_instansi_penerima': 'Anjab ABK Instansi Penerima',
+    'anjab_abk_instansi_pembina': 'Anjab ABK Instansi Pembina',
+    
+    // Dokumen Lainnya
+    'peta_jabatan': 'Peta Jabatan',
+    'hasil_evaluasi_pertimbangan_baperjaka': 'Hasil Evaluasi Pertimbangan Baperjaka',
+    'hasil_evaluasi_pertimbangan_baperjakat': 'Hasil Evaluasi Pertimbangan Baperjakat'
+  };
+  
+  // Return mapped name if exists, otherwise format the underscore name
+  return fileMapping[fileName] || fileName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
 // =============== REKAP AGGREGATE (Admin Wilayah & Superadmin) ===============
 export async function getRekapAggregate(req: AuthRequest, res: Response) {
   try {
@@ -1986,11 +2026,67 @@ export async function editJabatanPengajuan(req: AuthRequest, res: Response) {
     const oldJabatanId = pengajuan.jabatan_id;
     const oldJenisJabatan = pengajuan.jenis_jabatan;
 
+    // Get required files for new jabatan
+    const newJobType = await JobTypeConfiguration.findByPk(jabatan_id);
+    if (!newJobType) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Jenis jabatan tidak ditemukan' 
+      });
+    }
+
+    const requiredFiles = JSON.parse(newJobType.required_files || '[]');
+    
+    // Get current uploaded files
+    const currentFiles = await PengajuanFile.findAll({
+      where: { 
+        pengajuan_id: id,
+        file_category: 'kabupaten'
+      }
+    });
+    
+    const currentFileTypes = currentFiles.map(f => f.file_type);
+    const missingFiles = requiredFiles.filter((req: string) => !currentFileTypes.includes(req));
+    const extraFiles = currentFileTypes.filter(current => !requiredFiles.includes(current));
+
     // Update jabatan pengajuan
     await pengajuan.update({
       jabatan_id: jabatan_id,
       jenis_jabatan: jenis_jabatan
     });
+
+    // Check if files need adjustment
+    let statusUpdate: { status?: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted' | 'admin_wilayah_approved' | 'admin_wilayah_rejected' | 'final_approved' | 'final_rejected'; catatan?: string } = {};
+    let additionalNote = '';
+
+    if (missingFiles.length > 0 || extraFiles.length > 0) {
+      // Reset status to draft if files don't match
+      statusUpdate = { 
+        status: 'draft',
+        catatan: `Jabatan diubah dari ${oldJenisJabatan} ke ${jenis_jabatan}. `
+      };
+      
+      if (missingFiles.length > 0) {
+        console.log('Missing files before format:', missingFiles);
+        const userFriendlyMissingFiles = missingFiles.map(formatFileNameToUserFriendly);
+        console.log('Missing files after format:', userFriendlyMissingFiles);
+        additionalNote += `Berkas yang kurang: ${userFriendlyMissingFiles.join(', ')}. `;
+      }
+      
+      if (extraFiles.length > 0) {
+        console.log('Extra files before format:', extraFiles);
+        const userFriendlyExtraFiles = extraFiles.map(formatFileNameToUserFriendly);
+        console.log('Extra files after format:', userFriendlyExtraFiles);
+        additionalNote += `Berkas yang tidak diperlukan: ${userFriendlyExtraFiles.join(', ')}. `;
+      }
+      
+      additionalNote += 'Silakan sesuaikan berkas yang diupload.';
+      
+      await pengajuan.update({
+        ...statusUpdate,
+        catatan: statusUpdate.catatan + additionalNote
+      });
+    }
 
     // Buat audit log
     await PengajuanAuditLog.create({
@@ -2002,7 +2098,7 @@ export async function editJabatanPengajuan(req: AuthRequest, res: Response) {
       new_value: JSON.stringify({ jabatan_id, jenis_jabatan }),
       reason: reason.trim(),
       changed_by: user.id,
-      changed_by_name: user.full_name
+      changed_by_name: user.full_name || user.email || 'Unknown User'
     });
 
     logger.info('Jabatan pengajuan changed by superadmin', {
@@ -2019,7 +2115,15 @@ export async function editJabatanPengajuan(req: AuthRequest, res: Response) {
       data: {
         pengajuan,
         old_jabatan: { jabatan_id: oldJabatanId, jenis_jabatan: oldJenisJabatan },
-        new_jabatan: { jabatan_id, jenis_jabatan }
+        new_jabatan: { jabatan_id, jenis_jabatan },
+        file_validation: {
+          required_files: requiredFiles,
+          current_files: currentFileTypes,
+          missing_files: missingFiles,
+          extra_files: extraFiles,
+          needs_adjustment: missingFiles.length > 0 || extraFiles.length > 0,
+          status_changed: Object.keys(statusUpdate).length > 0
+        }
       }
     });
   } catch (error) {
@@ -2032,6 +2136,7 @@ export async function editJabatanPengajuan(req: AuthRequest, res: Response) {
 export async function getPengajuanAuditLog(req: AuthRequest, res: Response) {
   try {
     const { id } = req.params;
+    const { page = 1, limit = 10 } = req.query;
     const user = req.user;
 
     if (!user) {
@@ -2048,17 +2153,41 @@ export async function getPengajuanAuditLog(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
     }
 
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || 10;
+    const offset = (pageNum - 1) * limitNum;
+
+    // Get total count
+    const totalCount = await PengajuanAuditLog.count({
+      where: { pengajuan_id: id }
+    });
+
+    // Get paginated audit logs
     const auditLogs = await PengajuanAuditLog.findAll({
       where: { pengajuan_id: id },
       order: [['changed_at', 'DESC']],
+      limit: limitNum,
+      offset: offset,
       include: [
         { model: User, as: 'changer', attributes: ['id', 'full_name', 'email'] }
       ]
     });
 
+    const totalPages = Math.ceil(totalCount / limitNum);
+
     res.json({ 
       success: true, 
-      data: auditLogs
+      data: {
+        audit_logs: auditLogs,
+        pagination: {
+          current_page: pageNum,
+          total_pages: totalPages,
+          total_count: totalCount,
+          limit: limitNum,
+          has_next: pageNum < totalPages,
+          has_prev: pageNum > 1
+        }
+      }
     });
   } catch (error) {
     console.error('Error in getPengajuanAuditLog:', error);

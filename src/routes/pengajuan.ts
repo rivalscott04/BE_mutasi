@@ -143,6 +143,7 @@ const handleMulterError = (err: any, req: any, res: any, next: any) => {
 
 // Routes
 router.get('/pegawai-grouped', authMiddleware, getPegawaiGroupedByKabupaten);
+router.get('/available-jabatan', authMiddleware, getAvailableJabatan);
 router.post('/', authMiddleware, createPengajuan);
 router.post('/:pengajuan_id/upload', authMiddleware, upload.single('file'), handleMulterError, uploadPengajuanFile);
 router.put('/:pengajuan_id/submit', authMiddleware, submitPengajuan);
@@ -235,8 +236,7 @@ router.put('/:id/edit-jabatan', authMiddleware, editJabatanPengajuan);
 // Get audit log route (superadmin only)
 router.get('/:id/audit-log', authMiddleware, getPengajuanAuditLog);
 
-// Get available jabatan route (superadmin only)
-router.get('/available-jabatan', authMiddleware, getAvailableJabatan);
+// Get available jabatan route moved to top to avoid conflict with /:id route
 
 router.delete('/:id', authMiddleware, deletePengajuan);
 
