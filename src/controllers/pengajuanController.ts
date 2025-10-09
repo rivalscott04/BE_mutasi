@@ -1745,47 +1745,8 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
 
     console.log('🔍 Status data from database:', statusData);
 
-    // Special handling for 'submitted' status - check if there are admin wilayah files
-    const submittedStatus = statusData.find(item => item.status === 'submitted');
-    if (submittedStatus) {
-      // Check how many submitted pengajuan have admin wilayah files
-      const submittedWithAdminWilayah = await Pengajuan.count({
-        where: {
-          ...whereClause,
-          status: 'submitted'
-        },
-        include: [{
-          model: PengajuanFile,
-          as: 'files',
-          where: { file_category: 'admin_wilayah' },
-          required: true
-        }]
-      });
-
-      const submittedWithoutAdminWilayah = parseInt((submittedStatus as any).count as string) - submittedWithAdminWilayah;
-
-      // Remove the original submitted status
-      const filteredStatusData = statusData.filter(item => item.status !== 'submitted');
-      
-      // Add separate statuses
-      if (submittedWithoutAdminWilayah > 0) {
-        filteredStatusData.push({
-          status: 'submitted',
-          count: submittedWithoutAdminWilayah
-        } as any);
-      }
-      
-      if (submittedWithAdminWilayah > 0) {
-        filteredStatusData.push({
-          status: 'admin_wilayah_submitted',
-          count: submittedWithAdminWilayah
-        } as any);
-      }
-
-      // Update statusData
-      statusData.length = 0;
-      statusData.push(...filteredStatusData);
-    }
+    // Tidak perlu special handling lagi karena status 'admin_wilayah_submitted' sudah ada di database
+    // Logika lama sudah tidak digunakan karena sekarang ada status 'admin_wilayah_submitted' yang terpisah
 
     // Format status options with count - only include statuses that exist in database
     const statusOptions = statusData
