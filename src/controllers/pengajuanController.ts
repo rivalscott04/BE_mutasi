@@ -1033,12 +1033,16 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
     // RBAC filter
     // - admin: lihat semua
     // - user (admin pusat read-only): global final_approved saja
-    // - lainnya: batasi office_id
+    // - admin_wilayah: lihat pengajuan dari wilayahnya (termasuk yang sudah di-submit ke superadmin)
+    // - operator: lihat pengajuan yang mereka buat
     if (user.role === 'user') {
       where.status = 'final_approved';
-    } else if (user.role !== 'admin') {
+    } else if (user.role === 'admin_wilayah') {
       where.office_id = user.office_id;
+    } else if (user.role === 'operator') {
+      where.created_by = user.id;
     }
+    // admin: no restrictions
 
     // Filter berdasarkan created_by (siapa yang membuat)
     if (created_by && created_by !== 'all') {
@@ -1055,6 +1059,7 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       created_by,
       search,
       userRole: user.role,
+      userOfficeId: user.office_id,
       whereClause: where,
       offset: (Number(page) - 1) * Number(limit)
     });
@@ -1700,31 +1705,32 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
     });
 
     // Build where clause based on user role for status filtering
+    // Konsisten dengan getAllPengajuan
     let whereClause: any = {};
     
-    console.log('🔍 User role:', user.role, 'Office ID:', user.office_id, 'User ID:', user.id);
+    console.log('🔍 Filter Options - User role:', user.role, 'Office ID:', user.office_id, 'User ID:', user.id);
     
-    // For admin_wilayah, only show data from their office/wilayah
-    if (user.role === 'admin_wilayah' && user.office_id) {
-      whereClause.office_id = user.office_id;
-      console.log('🔍 Admin wilayah filter - office_id:', user.office_id);
-    }
-    
-    // For operator, only show data they created
-    if (user.role === 'operator') {
-      whereClause.created_by = user.id;
-      console.log('🔍 Operator filter - created_by:', user.id);
-    }
-    
-    // For read-only user (admin pusat), only show final_approved
+    // RBAC filter - konsisten dengan getAllPengajuan
+    // - admin: lihat semua
+    // - user (admin pusat read-only): global final_approved saja
+    // - admin_wilayah: lihat pengajuan dari wilayahnya (termasuk yang sudah di-submit ke superadmin)
+    // - operator: lihat pengajuan yang mereka buat
     if (user.role === 'user') {
       whereClause.status = 'final_approved';
       console.log('🔍 Read-only user filter - status: final_approved');
+    } else if (user.role === 'admin_wilayah') {
+      whereClause.office_id = user.office_id;
+      console.log('🔍 Admin wilayah filter - office_id:', user.office_id);
+    } else if (user.role === 'operator') {
+      whereClause.created_by = user.id;
+      console.log('🔍 Operator filter - created_by:', user.id);
     }
+    // admin: no restrictions
     
     console.log('🔍 Where clause for status filter:', whereClause);
 
     // Get unique statuses from pengajuan with count - only show statuses that actually exist in database
+    console.log('🔍 Getting status data with whereClause:', whereClause);
     const statusData = await Pengajuan.findAll({
       attributes: [
         'status',
@@ -1736,6 +1742,8 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
       raw: true,
       order: [['status', 'ASC']]
     });
+
+    console.log('🔍 Status data from database:', statusData);
 
     // Special handling for 'submitted' status - check if there are admin wilayah files
     const submittedStatus = statusData.find(item => item.status === 'submitted');
