@@ -26,7 +26,14 @@ const upload = multer({
 
 // Apply auth middleware to all routes
 router.use(authMiddleware);
-router.use(requireRole('admin_wilayah'));
+// Allow both admin_wilayah and admin (superadmin) to access these routes
+router.use((req, res, next) => {
+  const user = (req as any).user;
+  if (!user || (user.role !== 'admin_wilayah' && user.role !== 'admin')) {
+    return res.status(403).json({ message: 'Forbidden: insufficient role' });
+  }
+  next();
+});
 
 // Dashboard admin wilayah
 router.get('/dashboard', getAdminWilayahDashboard);

@@ -513,8 +513,8 @@ export async function uploadPengajuanFile(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
     }
 
-    // Office access check (non-admin hanya boleh akses pengajuan kantornya)
-    if (user?.role !== 'admin' && user?.office_id && pengajuan.office_id !== user.office_id) {
+    // Office access check (admin dan admin_wilayah dapat akses pengajuan kantornya)
+    if (user?.role !== 'admin' && user?.role !== 'admin_wilayah' && user?.office_id && pengajuan.office_id !== user.office_id) {
       return res.status(403).json({ success: false, message: 'Forbidden: Anda hanya dapat mengelola pengajuan dari kantor Anda' });
     }
 
@@ -669,8 +669,8 @@ export async function updatePengajuanFiles(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
     }
 
-    // Office access check (non-admin hanya boleh akses pengajuan kantornya)
-    if (user?.role !== 'admin' && user?.office_id && pengajuan.office_id !== user.office_id) {
+    // Office access check (admin dan admin_wilayah dapat akses pengajuan kantornya)
+    if (user?.role !== 'admin' && user?.role !== 'admin_wilayah' && user?.office_id && pengajuan.office_id !== user.office_id) {
       return res.status(403).json({ success: false, message: 'Forbidden: Anda hanya dapat mengelola pengajuan dari kantor Anda' });
     }
 
@@ -823,8 +823,8 @@ export async function submitPengajuan(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
     }
 
-    // Office access check (non-admin hanya boleh submit pengajuan kantornya)
-    if (user?.role !== 'admin' && user?.office_id && pengajuan.office_id !== user.office_id) {
+    // Office access check (admin dan admin_wilayah dapat submit pengajuan kantornya)
+    if (user?.role !== 'admin' && user?.role !== 'admin_wilayah' && user?.office_id && pengajuan.office_id !== user.office_id) {
       return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak memiliki akses ke pengajuan ini' });
     }
 
@@ -845,6 +845,8 @@ export async function submitPengajuan(req: AuthRequest, res: Response) {
       status: 'submitted',
       catatan 
     });
+
+
 
     res.json({ success: true, data: pengajuan });
   } catch (error) {
@@ -880,11 +882,17 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
 
     // Check if user has access to this pengajuan
     // - admin: full access
+    // - admin_wilayah: access to pengajuan from their office for verification
     // - user (admin pusat read-only): global access only for final_approved
     // - others: must match office_id
     if (user.role === 'user') {
       if (pengajuan.status !== 'final_approved') {
         return res.status(403).json({ success: false, message: 'Forbidden: Hanya pengajuan final_approved yang dapat diakses' });
+      }
+    } else if (user.role === 'admin_wilayah') {
+      // Admin wilayah can access pengajuan from their office for verification
+      if (pengajuan.office_id !== user.office_id) {
+        return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak memiliki akses ke pengajuan ini' });
       }
     } else if (user.role !== 'admin' && pengajuan.office_id !== user.office_id) {
       return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak memiliki akses ke pengajuan ini' });
@@ -1019,12 +1027,7 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
 
     const where: any = {};
     if (status) {
-      if (status === 'admin_wilayah_submitted') {
-        // Special case: find submitted pengajuan that have admin_wilayah files
-        where.status = 'submitted';
-      } else {
-        where.status = status;
-      }
+      where.status = status;
     }
 
     // RBAC filter
@@ -1375,8 +1378,8 @@ export async function resubmitPengajuan(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'Pengajuan not found' });
     }
 
-    // Office access check (non-admin hanya boleh resubmit pengajuan kantornya)
-    if (user.role !== 'admin' && pengajuan.office_id !== user.office_id) {
+    // Office access check (admin dan admin_wilayah dapat akses pengajuan kantornya)
+    if (user.role !== 'admin' && user.role !== 'admin_wilayah' && pengajuan.office_id !== user.office_id) {
       return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak memiliki akses ke pengajuan ini' });
     }
 
@@ -1410,11 +1413,11 @@ export async function replacePengajuanFile(req: AuthRequest, res: Response) {
     const user = req.user;
     const file = req.file;
 
-    // Validasi role - hanya superadmin
-    if (user?.role !== 'admin') {
+    // Validasi role - admin dan admin_wilayah bisa mengganti file
+    if (user?.role !== 'admin' && user?.role !== 'admin_wilayah') {
       return res.status(403).json({
         success: false,
-        message: 'Hanya superadmin yang bisa mengganti file'
+        message: 'Hanya admin dan admin_wilayah yang bisa mengganti file'
       });
     }
 
@@ -1626,14 +1629,14 @@ export async function verifyFile(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'File not found' });
     }
 
-    // RBAC: admin selalu boleh; admin_wilayah boleh jika pengajuan milik kantornya dan status 'approved'
+    // RBAC: admin selalu boleh; admin_wilayah boleh jika pengajuan milik kantornya dan status sesuai
     if (user.role !== 'admin') {
       const pengajuan = await Pengajuan.findByPk(file.pengajuan_id);
       if (!pengajuan) {
         return res.status(404).json({ success: false, message: 'Pengajuan not found for this file' });
       }
       const sameOffice = user.office_id && pengajuan.office_id === user.office_id;
-      const statusAllowed = (pengajuan.status === 'approved' || pengajuan.status === 'submitted');
+      const statusAllowed = (pengajuan.status === 'approved' || pengajuan.status === 'submitted' || pengajuan.status === 'admin_wilayah_submitted');
       if (!(user.role === 'admin_wilayah' && sameOffice && statusAllowed)) {
         return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak berhak memverifikasi file ini' });
       }
@@ -1811,7 +1814,7 @@ function getStatusDisplayName(status: string): string {
     'resubmitted': 'Diajukan Ulang',
     'admin_wilayah_approved': 'Disetujui Admin Wilayah',
     'admin_wilayah_rejected': 'Ditolak Admin Wilayah',
-    'admin_wilayah_submitted': 'Pengajuan Admin Wilayah',
+    'admin_wilayah_submitted': 'Diajukan Admin Wilayah',
     'final_approved': 'Final Approved',
     'final_rejected': 'Final Rejected'
   };
@@ -1906,11 +1909,11 @@ export async function finalApprovePengajuan(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
     }
 
-    // Hanya bisa approve final jika status admin_wilayah_approved
-    if (pengajuan.status !== 'admin_wilayah_approved') {
+    // Hanya bisa approve final jika status admin_wilayah_submitted
+    if (pengajuan.status !== 'admin_wilayah_submitted') {
       return res.status(400).json({ 
         success: false, 
-        message: 'Hanya pengajuan yang sudah disetujui admin wilayah yang bisa diapprove final' 
+        message: 'Hanya pengajuan yang sudah diajukan admin wilayah yang bisa diapprove final' 
       });
     }
 
@@ -1920,6 +1923,9 @@ export async function finalApprovePengajuan(req: AuthRequest, res: Response) {
       final_approved_by: user.email || user.id,
       final_approved_at: new Date()
     });
+
+
+
 
     res.json({ 
       success: true, 
@@ -1960,21 +1966,24 @@ export async function finalRejectPengajuan(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
     }
 
-    // Hanya bisa reject final jika status admin_wilayah_approved
-    if (pengajuan.status !== 'admin_wilayah_approved') {
+    // Hanya bisa reject final jika status admin_wilayah_submitted
+    if (pengajuan.status !== 'admin_wilayah_submitted') {
       return res.status(400).json({ 
         success: false, 
-        message: 'Hanya pengajuan yang sudah disetujui admin wilayah yang bisa direject final' 
+        message: 'Hanya pengajuan yang sudah diajukan admin wilayah yang bisa direject final' 
       });
     }
 
-    // Update status pengajuan menjadi final_rejected
+    // Update status pengajuan menjadi admin_wilayah_rejected untuk memungkinkan resubmit
     await pengajuan.update({
-      status: 'final_rejected',
-      final_rejected_by: user.email || user.id,
-      final_rejected_at: new Date(),
-      final_rejection_reason: rejection_reason.trim()
+      status: 'admin_wilayah_rejected',
+      rejected_by: user.email || user.id,
+      rejected_at: new Date(),
+      rejection_reason: rejection_reason.trim()
     });
+
+
+
 
     res.json({ 
       success: true, 
@@ -2049,6 +2058,15 @@ export async function editJabatanPengajuan(req: AuthRequest, res: Response) {
     const missingFiles = requiredFiles.filter((req: string) => !currentFileTypes.includes(req));
     const extraFiles = currentFileTypes.filter(current => !requiredFiles.includes(current));
 
+    // Delete admin wilayah files when jabatan is changed
+    // This ensures clean workflow - admin wilayah must upload new files for new jabatan
+    await PengajuanFile.destroy({
+      where: { 
+        pengajuan_id: id,
+        file_category: 'admin_wilayah'
+      }
+    });
+
     // Update jabatan pengajuan
     await pengajuan.update({
       jabatan_id: jabatan_id,
@@ -2056,7 +2074,7 @@ export async function editJabatanPengajuan(req: AuthRequest, res: Response) {
     });
 
     // Check if files need adjustment
-    let statusUpdate: { status?: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted' | 'admin_wilayah_approved' | 'admin_wilayah_rejected' | 'final_approved' | 'final_rejected'; catatan?: string } = {};
+    let statusUpdate: { status?: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted' | 'admin_wilayah_approved' | 'admin_wilayah_rejected' | 'admin_wilayah_submitted' | 'final_approved' | 'final_rejected'; catatan?: string } = {};
     let additionalNote = '';
 
     if (missingFiles.length > 0 || extraFiles.length > 0) {

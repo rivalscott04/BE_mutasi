@@ -68,6 +68,7 @@ Pengajuan.hasMany(PengajuanAuditLog, { foreignKey: 'pengajuan_id', as: 'audit_lo
 PengajuanAuditLog.belongsTo(User, { foreignKey: 'changed_by', as: 'changer' });
 User.hasMany(PengajuanAuditLog, { foreignKey: 'changed_by', as: 'audit_changes' });
 
+
 // Note: Maintenance model tidak menggunakan foreign key constraint
 // Referential integrity dihandle di application level
 
@@ -83,5 +84,5 @@ export {
   JobTypeConfiguration,
   AdminWilayahFileConfig,
   Maintenance,
-  PengajuanAuditLog
+  PengajuanAuditLog,
 }; 

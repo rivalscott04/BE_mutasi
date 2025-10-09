@@ -1,22 +1,28 @@
 import { Request, Response } from 'express';
 import { normalizeJobTypeName } from '../utils/jobTypeAlias';
-import { Pengajuan, PengajuanFile, AdminWilayahFileConfig, Pegawai, Office } from '../models';
+import { Pengajuan, PengajuanFile, AdminWilayahFileConfig, Pegawai, Office, User } from '../models';
 
 // Dashboard untuk admin wilayah - lihat pengajuan yang sudah di-ACC admin wilayah
 export async function getAdminWilayahDashboard(req: Request, res: Response) {
   try {
     const user = (req as any).user;
     
-    if (user.role !== 'admin_wilayah') {
+    if (user.role !== 'admin_wilayah' && user.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
     // Ambil pengajuan yang sudah di-ACC admin wilayah
+    const whereClause: any = {
+      status: 'admin_wilayah_approved'
+    };
+    
+    // Admin wilayah hanya lihat pengajuan dari wilayahnya, superadmin lihat semua
+    if (user.role !== 'admin') {
+      whereClause.office_id = user.office_id;
+    }
+    
     const pengajuanList = await Pengajuan.findAll({
-      where: {
-        status: 'admin_wilayah_approved',
-        office_id: user.office_id // Hanya lihat pengajuan dari wilayah admin
-      },
+      where: whereClause,
       include: [
         { model: Pegawai, as: 'pegawai', attributes: ['nip', 'nama'] },
         { model: Office, as: 'office', attributes: ['id', 'name', 'kabkota'] }
@@ -129,7 +135,10 @@ export async function getPengajuanDetail(req: Request, res: Response) {
     const { id } = req.params;
     const user = (req as any).user;
 
-    if (user.role !== 'admin_wilayah') {
+    console.log('🔍 Admin Wilayah getPengajuanDetail:', { id, userRole: user?.role, userId: user?.id });
+
+    if (user.role !== 'admin_wilayah' && user.role !== 'admin') {
+      console.log('❌ Unauthorized access attempt:', user?.role);
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
@@ -150,17 +159,29 @@ export async function getPengajuanDetail(req: Request, res: Response) {
     }
 
     // Validasi office_id
-    if (pengajuan.office_id !== user.office_id) {
+    if (user.role !== 'admin' && pengajuan.office_id !== user.office_id) {
       return res.status(403).json({ message: 'Anda tidak memiliki akses ke pengajuan ini' });
     }
 
     // Ambil konfigurasi file yang perlu diupload admin wilayah
-    const adminWilayahFileConfig = await AdminWilayahFileConfig.findAll({
-      where: {
-        jenis_jabatan_id: pengajuan.jenis_jabatan,
-        is_active: true
+    let adminWilayahFileConfig: any[] = [];
+    try {
+      const jobType = await (await import('../models/JobTypeConfiguration')).default.findOne({
+        where: { jenis_jabatan: pengajuan.jenis_jabatan, is_active: true }
+      });
+      const jobTypeId = jobType ? (jobType as any).id : null;
+      if (jobTypeId) {
+        adminWilayahFileConfig = await AdminWilayahFileConfig.findAll({
+          where: {
+            jenis_jabatan_id: jobTypeId,
+            is_active: true
+          }
+        });
       }
-    });
+    } catch (error) {
+      console.error('Error fetching admin wilayah file config:', error);
+      adminWilayahFileConfig = [];
+    }
 
     // Cek file mana yang sudah diupload admin wilayah
     const uploadedAdminWilayahFiles = (pengajuan as any).files?.filter((f: any) => f.file_category === 'admin_wilayah') || [];
@@ -211,7 +232,7 @@ export async function approvePengajuan(req: Request, res: Response) {
     }
 
     // Validasi office_id
-    if (pengajuan.office_id !== user.office_id) {
+    if (user.role !== 'admin' && pengajuan.office_id !== user.office_id) {
       return res.status(403).json({ message: 'Anda tidak memiliki akses ke pengajuan ini' });
     }
 
@@ -225,6 +246,7 @@ export async function approvePengajuan(req: Request, res: Response) {
       status: 'admin_wilayah_approved',
       catatan: notes || 'Disetujui oleh Admin Wilayah'
     });
+
 
     res.json({
       success: true,
@@ -256,7 +278,7 @@ export async function rejectPengajuan(req: Request, res: Response) {
     }
 
     // Validasi office_id
-    if (pengajuan.office_id !== user.office_id) {
+    if (user.role !== 'admin' && pengajuan.office_id !== user.office_id) {
       return res.status(403).json({ message: 'Anda tidak memiliki akses ke pengajuan ini' });
     }
 
@@ -273,6 +295,7 @@ export async function rejectPengajuan(req: Request, res: Response) {
       rejected_by: user.id,
       rejected_at: new Date()
     });
+
 
     res.json({
       success: true,
@@ -305,7 +328,7 @@ export async function uploadAdminWilayahFile(req: Request, res: Response) {
     }
 
     // Validasi office_id
-    if (pengajuan.office_id !== user.office_id) {
+    if (user.role !== 'admin' && pengajuan.office_id !== user.office_id) {
       return res.status(403).json({ message: 'Anda tidak memiliki akses ke pengajuan ini' });
     }
 
@@ -375,15 +398,14 @@ export async function uploadAdminWilayahFile(req: Request, res: Response) {
         file_path: `uploads/pengajuan/${req.file.filename}`,
         file_size: req.file.size,
         upload_status: 'uploaded',
+        verification_status: 'approved', // Auto-approve file admin wilayah yang diupload sendiri
         verification_notes: description,
         uploaded_by: user.id,
         uploaded_by_role: 'admin_wilayah',
         uploaded_by_name: user.full_name,
         uploaded_by_office: user.office_id,
-        // Reset verification status saat file diganti
-        verification_status: 'pending',
-        verified_by: undefined,
-        verified_at: undefined
+        verified_by: user.id,
+        verified_at: new Date()
       });
       fileRecord = existingFile;
     } else {
@@ -397,11 +419,14 @@ export async function uploadAdminWilayahFile(req: Request, res: Response) {
         file_path: `uploads/pengajuan/${req.file.filename}`,
         file_size: req.file.size,
         upload_status: 'uploaded',
+        verification_status: 'approved', // Auto-approve file admin wilayah yang diupload sendiri
         verification_notes: description,
         uploaded_by: user.id,
         uploaded_by_role: 'admin_wilayah',
         uploaded_by_name: user.full_name,
-        uploaded_by_office: user.office_id
+        uploaded_by_office: user.office_id,
+        verified_by: user.id,
+        verified_at: new Date()
       });
     }
 
@@ -434,7 +459,7 @@ export async function submitToSuperadmin(req: Request, res: Response) {
     }
 
     // Validasi office_id
-    if (pengajuan.office_id !== user.office_id) {
+    if (user.role !== 'admin' && pengajuan.office_id !== user.office_id) {
       return res.status(403).json({ message: 'Anda tidak memiliki akses ke pengajuan ini' });
     }
 
@@ -456,16 +481,16 @@ export async function submitToSuperadmin(req: Request, res: Response) {
     } catch {
       requiredCount = 0;
     }
-    const approvedAwFiles = await PengajuanFile.count({
-      where: { pengajuan_id: pengajuanId, file_category: 'admin_wilayah', verification_status: 'approved' } as any
+    const uploadedAwFiles = await PengajuanFile.count({
+      where: { pengajuan_id: pengajuanId, file_category: 'admin_wilayah' } as any
     });
 
-    if (requiredCount > 0 && approvedAwFiles < requiredCount) {
+    if (requiredCount > 0 && uploadedAwFiles < requiredCount) {
       return res.status(400).json({ message: 'Dokumen Kanwil belum lengkap/sesuai. Lengkapi dan setujui semua dokumen wajib terlebih dahulu.' });
     }
 
     // Update status untuk review superadmin
-    await pengajuan.update({ status: 'submitted' });
+    await pengajuan.update({ status: 'admin_wilayah_submitted' });
 
     res.json({
       success: true,

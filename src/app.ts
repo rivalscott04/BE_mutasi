@@ -80,6 +80,7 @@ app.use('/api/admin-wilayah-file-config', authMiddleware, bypassOfficeFilterForA
 // Maintenance routes
 app.use('/api/maintenance', maintenanceRouter);
 
+
 // Health check
 app.get('/api/health', (req, res) => {
   logger.info('Health check requested', { ip: req.ip });
