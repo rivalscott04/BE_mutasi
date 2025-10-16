@@ -57,6 +57,10 @@ JobTypeConfiguration.hasMany(AdminWilayahFileConfig, { foreignKey: 'jenis_jabata
 PengajuanFile.belongsTo(User, { foreignKey: 'uploaded_by', as: 'uploader' });
 User.hasMany(PengajuanFile, { foreignKey: 'uploaded_by', as: 'uploaded_files' });
 
+// Relasi PengajuanFile - User (verified_by)
+PengajuanFile.belongsTo(User, { foreignKey: 'verified_by', as: 'verifier' });
+User.hasMany(PengajuanFile, { foreignKey: 'verified_by', as: 'verified_files' });
+
 // Initialize models after all relations are set up
 initPengajuanAuditLog(db);
 

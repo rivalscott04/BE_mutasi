@@ -22,7 +22,10 @@ export async function login(req: Request, res: Response) {
         email,
         ip: req.ip
       });
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ 
+        success: false,
+        message: 'Email atau password salah' 
+      });
     }
     
     const isValid = await bcrypt.compare(password, user.password_hash);
@@ -33,7 +36,10 @@ export async function login(req: Request, res: Response) {
         ip: req.ip,
         userId: user.id
       });
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ 
+        success: false,
+        message: 'Email atau password salah' 
+      });
     }
     
     const payload = {
@@ -70,7 +76,11 @@ export async function login(req: Request, res: Response) {
       ip: req.ip
     });
     
-    res.json({ token, user: userInfo });
+    res.json({ 
+      success: true,
+      token, 
+      user: userInfo 
+    });
   } catch (error) {
     // Enhanced error handling to prevent crashes
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -83,7 +93,10 @@ export async function login(req: Request, res: Response) {
       ip: req.ip || 'unknown'
     });
     
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Terjadi kesalahan server' 
+    });
   }
 }
 

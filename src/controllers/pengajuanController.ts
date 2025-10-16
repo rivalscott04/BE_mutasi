@@ -14,6 +14,37 @@ import logger from '../utils/logger';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
+// Helper function to format verifier display name
+function formatVerifierDisplay(verifier: any): string {
+  if (!verifier) return '-';
+  
+  // If verifier is an email (string), return it
+  if (typeof verifier === 'string') {
+    if (verifier.includes('@')) {
+      return verifier;
+    }
+    // If it's a UUID, return generic message
+    return 'Admin System';
+  }
+  
+  // If verifier is a User object
+  if (verifier.full_name) {
+    const role = verifier.role;
+    const wilayah = verifier.wilayah;
+    
+    // Format based on role and wilayah
+    if (role === 'admin') {
+      return wilayah ? `Admin Kanwil ${wilayah}` : 'Admin Kanwil';
+    } else if (role === 'admin_wilayah') {
+      return wilayah ? `Admin Wilayah ${wilayah}` : 'Admin Wilayah';
+    } else {
+      return verifier.full_name;
+    }
+  }
+  
+  return '-';
+}
+
 // Helper function to format file names to user-friendly format
 function formatFileNameToUserFriendly(fileName: string): string {
   console.log('Formatting file name:', fileName);
@@ -871,7 +902,15 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
         { model: Office, as: 'office', attributes: ['id', 'name', 'kabkota', 'address'] },
         { 
           model: PengajuanFile, 
-          as: 'files'
+          as: 'files',
+          include: [
+            { 
+              model: User, 
+              as: 'verifier', 
+              attributes: ['id', 'full_name', 'email', 'role', 'wilayah'],
+              required: false
+            }
+          ]
         }
       ]
     });
@@ -991,12 +1030,19 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
       (pengajuan as any).files.sort((a: any, b: any) => a.file_type.localeCompare(b.file_type));
     }
 
+    // Format files with verifier information
+    const formattedFiles = (pengajuan as any).files.map((file: any) => ({
+      ...file.toJSON(),
+      verifier_display: formatVerifierDisplay(file.verifier || file.verified_by)
+    }));
+
     res.json({ 
       success: true, 
       data: { 
         pengajuan: {
           ...pengajuan.toJSON(),
-          total_dokumen: updatedTotalDokumen
+          total_dokumen: updatedTotalDokumen,
+          files: formattedFiles
         },
         requiredFiles,
         jobTypeConfig: jobTypeConfig ? {
@@ -1651,7 +1697,7 @@ export async function verifyFile(req: AuthRequest, res: Response) {
     await file.update({
       verification_status: verification_status,
       verification_notes: verification_notes || null,
-      verified_by: user.email || user.id,
+      verified_by: user.id,
       verified_at: new Date()
     });
 
