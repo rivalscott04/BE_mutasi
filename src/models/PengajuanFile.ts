@@ -85,8 +85,7 @@ PengajuanFile.init({
     type: DataTypes.TEXT 
   },
   verified_by: { 
-    type: DataTypes.CHAR(36),
-    allowNull: true
+    type: DataTypes.STRING(255) 
   },
   verified_at: { 
     type: DataTypes.DATE 

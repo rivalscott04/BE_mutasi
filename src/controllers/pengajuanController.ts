@@ -14,37 +14,6 @@ import logger from '../utils/logger';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-// Helper function to format verifier display name
-function formatVerifierDisplay(verifier: any): string {
-  if (!verifier) return '-';
-  
-  // If verifier is an email (string), return it
-  if (typeof verifier === 'string') {
-    if (verifier.includes('@')) {
-      return verifier;
-    }
-    // If it's a UUID, return generic message
-    return 'Admin System';
-  }
-  
-  // If verifier is a User object
-  if (verifier.full_name) {
-    const role = verifier.role;
-    const wilayah = verifier.wilayah;
-    
-    // Format based on role and wilayah
-    if (role === 'admin') {
-      return wilayah ? `Admin Kanwil ${wilayah}` : 'Admin Kanwil';
-    } else if (role === 'admin_wilayah') {
-      return wilayah ? `Admin Wilayah ${wilayah}` : 'Admin Wilayah';
-    } else {
-      return verifier.full_name;
-    }
-  }
-  
-  return '-';
-}
-
 // Helper function to format file names to user-friendly format
 function formatFileNameToUserFriendly(fileName: string): string {
   console.log('Formatting file name:', fileName);
@@ -1022,34 +991,12 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
       (pengajuan as any).files.sort((a: any, b: any) => a.file_type.localeCompare(b.file_type));
     }
 
-    // Format files with verifier information
-    const formattedFiles = await Promise.all((pengajuan as any).files.map(async (file: any) => {
-      let verifierInfo = null;
-      
-      // If verified_by is a UUID, try to fetch user info
-      if (file.verified_by && file.verified_by.length === 36 && file.verified_by.includes('-')) {
-        try {
-          verifierInfo = await User.findByPk(file.verified_by, {
-            attributes: ['id', 'full_name', 'email', 'role', 'wilayah']
-          });
-        } catch (error) {
-          console.log('Could not fetch verifier info for:', file.verified_by);
-        }
-      }
-      
-      return {
-        ...file.toJSON(),
-        verifier_display: formatVerifierDisplay(verifierInfo || file.verified_by)
-      };
-    }));
-
     res.json({ 
       success: true, 
       data: { 
         pengajuan: {
           ...pengajuan.toJSON(),
-          total_dokumen: updatedTotalDokumen,
-          files: formattedFiles
+          total_dokumen: updatedTotalDokumen
         },
         requiredFiles,
         jobTypeConfig: jobTypeConfig ? {
