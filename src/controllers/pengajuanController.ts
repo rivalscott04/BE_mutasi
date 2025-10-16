@@ -902,15 +902,7 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
         { model: Office, as: 'office', attributes: ['id', 'name', 'kabkota', 'address'] },
         { 
           model: PengajuanFile, 
-          as: 'files',
-          include: [
-            { 
-              model: User, 
-              as: 'verifier', 
-              attributes: ['id', 'full_name', 'email', 'role', 'wilayah'],
-              required: false
-            }
-          ]
+          as: 'files'
         }
       ]
     });
@@ -1031,9 +1023,24 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
     }
 
     // Format files with verifier information
-    const formattedFiles = (pengajuan as any).files.map((file: any) => ({
-      ...file.toJSON(),
-      verifier_display: formatVerifierDisplay(file.verifier || file.verified_by)
+    const formattedFiles = await Promise.all((pengajuan as any).files.map(async (file: any) => {
+      let verifierInfo = null;
+      
+      // If verified_by is a UUID, try to fetch user info
+      if (file.verified_by && file.verified_by.length === 36 && file.verified_by.includes('-')) {
+        try {
+          verifierInfo = await User.findByPk(file.verified_by, {
+            attributes: ['id', 'full_name', 'email', 'role', 'wilayah']
+          });
+        } catch (error) {
+          console.log('Could not fetch verifier info for:', file.verified_by);
+        }
+      }
+      
+      return {
+        ...file.toJSON(),
+        verifier_display: formatVerifierDisplay(verifierInfo || file.verified_by)
+      };
     }));
 
     res.json({ 
