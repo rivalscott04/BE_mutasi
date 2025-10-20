@@ -54,7 +54,7 @@ router.post('/pengajuan/:pengajuanId/reject', rejectPengajuan);
 // Upload file admin wilayah (OPSIONAL sesuai konfigurasi superadmin)
 router.post('/pengajuan/:pengajuanId/upload', upload.single('file'), uploadAdminWilayahFile);
 
-// Replace file kabupaten/kota (admin wilayah only - untuk file di wilayahnya)
+// Replace file (admin wilayah: file kabupaten/kota di wilayahnya, superadmin: semua file di semua wilayah)
 router.put('/pengajuan/:pengajuanId/files/:fileId/replace', upload.single('file'), replaceAdminWilayahFile);
 
 // Submit pengajuan admin wilayah ke superadmin (setelah approve/reject)

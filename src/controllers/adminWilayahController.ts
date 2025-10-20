@@ -504,18 +504,18 @@ export async function submitToSuperadmin(req: Request, res: Response) {
   }
 }
 
-// Replace pengajuan file (admin wilayah only - untuk file kabupaten/kota di wilayahnya)
+// Replace pengajuan file (admin wilayah: file kabupaten/kota di wilayahnya, superadmin: semua file di semua wilayah)
 export async function replaceAdminWilayahFile(req: Request, res: Response) {
   try {
     const { pengajuanId, fileId } = req.params;
     const user = (req as any).user;
     const file = req.file;
 
-    // Validasi role - hanya admin wilayah
-    if (user.role !== 'admin_wilayah') {
+    // Validasi role - admin wilayah dan superadmin
+    if (user.role !== 'admin_wilayah' && user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Hanya admin wilayah yang bisa mengganti file'
+        message: 'Hanya admin wilayah dan superadmin yang bisa mengganti file'
       });
     }
 
@@ -547,8 +547,8 @@ export async function replaceAdminWilayahFile(req: Request, res: Response) {
       });
     }
 
-    // Validasi office_id - hanya wilayah admin wilayah
-    if (pengajuan.office_id !== user.office_id) {
+    // Validasi office_id - admin wilayah hanya bisa ganti file di wilayahnya, superadmin bisa ganti semua
+    if (user.role === 'admin_wilayah' && pengajuan.office_id !== user.office_id) {
       return res.status(403).json({
         success: false,
         message: 'Anda hanya bisa mengganti file di wilayah Anda'
@@ -572,8 +572,8 @@ export async function replaceAdminWilayahFile(req: Request, res: Response) {
       });
     }
 
-    // Validasi file category - admin wilayah hanya bisa ganti file kabupaten/kota
-    if (existingFile.file_category === 'admin_wilayah') {
+    // Validasi file category - admin wilayah hanya bisa ganti file kabupaten/kota, superadmin bisa ganti semua
+    if (user.role === 'admin_wilayah' && existingFile.file_category === 'admin_wilayah') {
       return res.status(403).json({
         success: false,
         message: 'Admin wilayah tidak bisa mengganti file admin wilayah'
@@ -591,7 +591,7 @@ export async function replaceAdminWilayahFile(req: Request, res: Response) {
     });
 
     // Log file replacement
-    console.log(`File replaced by admin wilayah: ${fileId} by ${user.full_name} (${user.office_id})`);
+    console.log(`File replaced: ${fileId} by ${user.full_name} (${user.role}) from office ${user.office_id}`);
 
     res.json({
       success: true,
