@@ -1017,7 +1017,7 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
 // Get all pengajuan
 export async function getAllPengajuan(req: AuthRequest, res: Response) {
   try {
-    const { status, page = 1, limit = 50, created_by, search } = req.query;
+    const { status, page = 1, limit = 50, created_by, search, jenis_jabatan } = req.query;
     const user = req.user;
     
     if (!user) {
@@ -1049,6 +1049,11 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       where.created_by = created_by;
     }
 
+    // Filter berdasarkan jenis jabatan
+    if (jenis_jabatan && jenis_jabatan !== 'all') {
+      where.jenis_jabatan = jenis_jabatan;
+    }
+
     const offset = (Number(page) - 1) * Number(limit);
 
     // Debug logging
@@ -1058,6 +1063,7 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       limit,
       created_by,
       search,
+      jenis_jabatan,
       userRole: user.role,
       userOfficeId: user.office_id,
       whereClause: where,
@@ -1743,7 +1749,22 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
       order: [['status', 'ASC']]
     });
 
+    // Get unique jenis jabatan from pengajuan with count
+    console.log('🔍 Getting jenis jabatan data with whereClause:', whereClause);
+    const jenisJabatanData = await Pengajuan.findAll({
+      attributes: [
+        'jenis_jabatan',
+        [db.fn('COUNT', db.col('id')), 'count']
+      ],
+      where: whereClause,
+      group: ['jenis_jabatan'],
+      having: db.where(db.fn('COUNT', db.col('id')), '>', 0),
+      raw: true,
+      order: [['jenis_jabatan', 'ASC']]
+    });
+
     console.log('🔍 Status data from database:', statusData);
+    console.log('🔍 Jenis jabatan data from database:', jenisJabatanData);
 
     // Tidak perlu special handling lagi karena status 'admin_wilayah_submitted' sudah ada di database
     // Logika lama sudah tidak digunakan karena sekarang ada status 'admin_wilayah_submitted' yang terpisah
@@ -1760,11 +1781,23 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
     console.log('🔍 Backend - Status data from DB:', statusData);
     console.log('🔍 Backend - Formatted status options:', statusOptions);
 
+    // Format jenis jabatan options with count
+    const jenisJabatanOptions = jenisJabatanData
+      .filter(item => item.jenis_jabatan && item.jenis_jabatan.trim() !== '')
+      .map(item => ({
+        value: item.jenis_jabatan,
+        label: item.jenis_jabatan,
+        count: parseInt((item as any).count as string)
+      }));
+
+    console.log('🔍 Backend - Jenis jabatan options:', jenisJabatanOptions);
+
     res.json({
       success: true,
       data: {
         users: users,
-        statuses: statusOptions
+        statuses: statusOptions,
+        jenisJabatan: jenisJabatanOptions
       }
     });
   } catch (error) {

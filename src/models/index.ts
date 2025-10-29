@@ -10,6 +10,8 @@ import JobTypeConfiguration from './JobTypeConfiguration';
 import AdminWilayahFileConfig from './AdminWilayahFileConfig';
 import Maintenance from './Maintenance';
 import PengajuanAuditLog, { initPengajuanAuditLog } from './PengajuanAuditLog';
+import TrackingStatus from './TrackingStatus';
+import PengajuanTracking from './PengajuanTracking';
 
 // Relasi User - Office
 User.belongsTo(Office, { foreignKey: 'office_id', as: 'office' });
@@ -69,6 +71,22 @@ Pengajuan.hasMany(PengajuanAuditLog, { foreignKey: 'pengajuan_id', as: 'audit_lo
 PengajuanAuditLog.belongsTo(User, { foreignKey: 'changed_by', as: 'changer' });
 User.hasMany(PengajuanAuditLog, { foreignKey: 'changed_by', as: 'audit_changes' });
 
+// Relasi TrackingStatus - User (created_by)
+TrackingStatus.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+User.hasMany(TrackingStatus, { foreignKey: 'created_by', as: 'created_statuses' });
+
+// Relasi PengajuanTracking - Pengajuan
+PengajuanTracking.belongsTo(Pengajuan, { foreignKey: 'pengajuan_id', as: 'pengajuan' });
+Pengajuan.hasMany(PengajuanTracking, { foreignKey: 'pengajuan_id', as: 'tracking', onDelete: 'CASCADE' });
+
+// Relasi PengajuanTracking - TrackingStatus
+PengajuanTracking.belongsTo(TrackingStatus, { foreignKey: 'tracking_status_id', as: 'status' });
+TrackingStatus.hasMany(PengajuanTracking, { foreignKey: 'tracking_status_id', as: 'tracking_records' });
+
+// Relasi PengajuanTracking - User (tracked_by)
+PengajuanTracking.belongsTo(User, { foreignKey: 'tracked_by', as: 'tracker' });
+User.hasMany(PengajuanTracking, { foreignKey: 'tracked_by', as: 'tracking_records' });
+
 
 // Note: Maintenance model tidak menggunakan foreign key constraint
 // Referential integrity dihandle di application level
@@ -86,4 +104,6 @@ export {
   AdminWilayahFileConfig,
   Maintenance,
   PengajuanAuditLog,
+  TrackingStatus,
+  PengajuanTracking,
 }; 

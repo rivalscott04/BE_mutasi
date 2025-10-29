@@ -11,6 +11,7 @@ import pengajuanRouter from './routes/pengajuan';
 import jobTypeConfigRouter from './routes/jobTypeConfig';
 import adminWilayahRouter from './routes/adminWilayah';
 import adminWilayahFileConfigRouter from './routes/adminWilayahFileConfig';
+import trackingRouter from './routes/tracking';
 import publicRouter from './routes/public';
 import maintenanceRouter from './routes/maintenance';
 import { sessionMiddleware, trackImpersonation } from './middleware/sessionManager';
@@ -76,6 +77,9 @@ app.use('/api/admin-wilayah', adminWilayahRouter);
 
 // Admin Wilayah File Config routes - dipindah ke level yang sama
 app.use('/api/admin-wilayah-file-config', authMiddleware, bypassOfficeFilterForAdmin, adminWilayahFileConfigRouter);
+
+// Tracking routes
+app.use('/api/tracking', trackingRouter);
 
 // Maintenance routes
 app.use('/api/maintenance', maintenanceRouter);
