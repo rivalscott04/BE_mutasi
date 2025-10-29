@@ -215,7 +215,7 @@ export async function getPengajuanForTracking(req: Request, res: Response) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    const { page = 1, limit = 10, search = '', status = '' } = req.query;
+    const { page = 1, limit = 1000, search = '', status = '' } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
     // Query untuk berkas yang sudah final approved
@@ -415,10 +415,10 @@ export async function getTrackingForSuperadmin(req: Request, res: Response) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    const { page = 1, limit = 10, search = '', status = '' } = req.query;
+    const { page = 1, limit = 1000, search = '', status = '' } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
-    // Query untuk berkas yang sudah final approved dan ada tracking
+    // Query untuk berkas yang sudah final approved
     const whereClause: any = {
       status: 'final_approved'
     };
@@ -431,6 +431,7 @@ export async function getTrackingForSuperadmin(req: Request, res: Response) {
       ];
     }
 
+    // Ambil pengajuan yang sudah final approved
     const { count, rows: pengajuan } = await Pengajuan.findAndCountAll({
       where: whereClause,
       limit: Number(limit),
@@ -440,48 +441,42 @@ export async function getTrackingForSuperadmin(req: Request, res: Response) {
         {
           model: Office,
           as: 'office',
-          attributes: ['id', 'name', 'kabkota']
+          attributes: ['id', 'name', 'kabkota'],
+          required: false
         },
         {
           model: Pegawai,
           as: 'pegawai',
-          attributes: ['id', 'nip', 'nama_lengkap']
-        },
-        {
-          model: PengajuanTracking,
-          as: 'tracking',
-          required: true, // INNER JOIN untuk ambil hanya yang ada tracking
-          order: [['created_at', 'DESC']],
-          include: [
-            {
-              model: TrackingStatus,
-              as: 'status'
-            },
-            {
-              model: User,
-              as: 'tracker',
-              attributes: ['id', 'nip', 'nama_lengkap']
-            }
-          ]
+          attributes: ['id', 'nip', 'nama'],
+          required: false
         }
       ]
     });
 
-    // Transform data untuk memastikan kompatibilitas dengan frontend
-    const transformedData = pengajuan.map(p => {
-      const pengajuanData = p.toJSON() as any;
-      return {
-        ...pengajuanData,
-        tracking: pengajuanData.tracking.map((t: any) => ({
-          ...t,
-          tracked_by_name: t.tracker?.nama_lengkap || t.tracked_by_name || 'Unknown'
-        }))
-      };
-    });
+    // Ambil tracking data untuk setiap pengajuan
+    const pengajuanWithTracking = await Promise.all(
+      pengajuan.map(async (p) => {
+        const pengajuanData = p.toJSON() as any;
+        
+        // Ambil tracking data untuk pengajuan ini (tanpa relasi dulu untuk testing)
+        const trackingData = await PengajuanTracking.findAll({
+          where: { pengajuan_id: p.id },
+          order: [['created_at', 'DESC']]
+        });
+
+        return {
+          ...pengajuanData,
+          tracking: trackingData.map((t: any) => ({
+            ...t.toJSON(),
+            tracked_by_name: t.tracked_by_name || 'Unknown'
+          }))
+        };
+      })
+    );
 
     res.json({
       success: true,
-      data: transformedData,
+      data: pengajuanWithTracking,
       pagination: {
         total: count,
         page: Number(page),
@@ -506,25 +501,73 @@ export async function getTrackingForAdmin(req: Request, res: Response) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    // Test endpoint sederhana
-    return res.json({
-      success: true,
-      data: [
+    const { page = 1, limit = 10, search = '', status = '' } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
+
+    // Query untuk berkas yang sudah final approved
+    const whereClause: any = {
+      status: 'final_approved'
+    };
+
+    // Filter search
+    if (search) {
+      whereClause[Op.or] = [
+        { pegawai_nip: { [Op.like]: `%${search}%` } },
+        { jenis_jabatan: { [Op.like]: `%${search}%` } }
+      ];
+    }
+
+    // Ambil pengajuan yang sudah final approved
+    const { count, rows: pengajuan } = await Pengajuan.findAndCountAll({
+      where: whereClause,
+      limit: Number(limit),
+      offset,
+      order: [['final_approved_at', 'DESC']],
+      include: [
         {
-          id: 'test-1',
-          pegawai_nip: '123456789',
-          jenis_jabatan: 'Test Jabatan',
-          total_dokumen: 5,
-          final_approved_at: new Date().toISOString(),
-          office: null,
-          tracking: []
+          model: Office,
+          as: 'office',
+          attributes: ['id', 'name', 'kabkota'],
+          required: false
+        },
+        {
+          model: Pegawai,
+          as: 'pegawai',
+          attributes: ['id', 'nip', 'nama'],
+          required: false
         }
-      ],
+      ]
+    });
+
+    // Ambil tracking data untuk setiap pengajuan
+    const pengajuanWithTracking = await Promise.all(
+      pengajuan.map(async (p) => {
+        const pengajuanData = p.toJSON() as any;
+        
+        // Ambil tracking data untuk pengajuan ini (tanpa relasi dulu untuk testing)
+        const trackingData = await PengajuanTracking.findAll({
+          where: { pengajuan_id: p.id },
+          order: [['created_at', 'DESC']]
+        });
+
+        return {
+          ...pengajuanData,
+          tracking: trackingData.map((t: any) => ({
+            ...t.toJSON(),
+            tracked_by_name: t.tracked_by_name || 'Unknown'
+          }))
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: pengajuanWithTracking,
       pagination: {
-        total: 1,
-        page: 1,
-        limit: 10,
-        totalPages: 1
+        total: count,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(count / Number(limit))
       }
     });
 
