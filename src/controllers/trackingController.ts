@@ -538,7 +538,7 @@ export async function getTrackingForSuperadmin(req: Request, res: Response) {
 
         return {
           ...pengajuanData,
-          tracking: trackingData.map((t: any) => ({
+          tracking: trackingData.map(t => ({
             ...t.toJSON(),
             tracked_by_name: t.tracked_by_name || 'Unknown'
           }))
@@ -615,22 +615,45 @@ export async function getTrackingForAdmin(req: Request, res: Response) {
     const pengajuanWithTracking = await Promise.all(
       pengajuan.map(async (p) => {
         const pengajuanData = p.toJSON() as any;
-        
-        // Ambil tracking data untuk pengajuan ini (tanpa relasi dulu untuk testing)
+        // Ambil tracking data untuk pengajuan ini
         const trackingData = await PengajuanTracking.findAll({
           where: { pengajuan_id: p.id },
           order: [['created_at', 'DESC']]
         });
+        // Tracking terbaru (atau null jika belum ada)
+        const latestTracking = trackingData[0] || null;
+        const latestTrackingDate = latestTracking ? latestTracking.created_at : null;
 
         return {
           ...pengajuanData,
           tracking: trackingData.map((t: any) => ({
             ...t.toJSON(),
             tracked_by_name: t.tracked_by_name || 'Unknown'
-          }))
+          })),
+          latestTrackingDate
         };
       })
     );
+
+    // Sorting:
+    // - Punya tracking (latestTrackingDate != null) selalu di atas (DESC)
+    // - Yang punya tracking diurutkan dari paling baru ke paling lama (created_at DESC)
+    // - Yang belum punya tracking di bawah (latestTrackingDate null)
+    pengajuanWithTracking.sort((a, b) => {
+      if (a.latestTrackingDate && b.latestTrackingDate) {
+        // Dua-duanya punya tracking, urutkan terbaru dulu
+        return new Date(b.latestTrackingDate).getTime() - new Date(a.latestTrackingDate).getTime();
+      } else if (a.latestTrackingDate && !b.latestTrackingDate) {
+        // a punya tracking, b tidak => a di atas
+        return -1;
+      } else if (!a.latestTrackingDate && b.latestTrackingDate) {
+        // b punya tracking, a tidak => b di atas
+        return 1;
+      } else {
+        // Dua-duanya sama-sama kosong (tidak punya tracking)
+        return 0;
+      }
+    });
 
     res.json({
       success: true,
