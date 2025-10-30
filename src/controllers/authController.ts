@@ -45,6 +45,7 @@ export async function login(req: Request, res: Response) {
     const payload = {
       id: user.id,
       email: user.email,
+      full_name: user.full_name, // Tambahkan field ini ke JWT
       role: user.role,
       office_id: user.office_id,
     };
