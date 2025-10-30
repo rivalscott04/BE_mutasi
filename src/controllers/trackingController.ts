@@ -324,18 +324,30 @@ export async function createPengajuanTracking(req: Request, res: Response) {
     const user = (req as any).user;
     const { pengajuanId } = req.params;
     const { tracking_status_id, notes, estimated_days } = req.body;
-    
+
+    // DEBUG: Log semua parameter input
+    console.log('[DEBUG INPUT TRACKING]', {
+      pengajuanId,
+      tracking_status_id,
+      notes,
+      estimated_days,
+      user: user ? { id: user.id, email: user.email, full_name: user.full_name, role: user.role } : null
+    });
+
     // Hanya user (admin pusat) yang bisa input tracking
     if (user.role !== 'user') {
+      console.warn('[WARN] Role tidak diizinkan input tracking:', user.role);
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
     if (!tracking_status_id) {
+      console.warn('[WARN] tracking_status_id kosong');
       return res.status(400).json({ message: 'Tracking status harus diisi' });
     }
 
     // Cek apakah pengajuan ada dan sudah final approved
     const pengajuan = await Pengajuan.findByPk(pengajuanId);
+    console.log('[DEBUG PENGAJUAN]', pengajuan ? pengajuan.toJSON() : pengajuan);
     if (!pengajuan) {
       return res.status(404).json({ message: 'Pengajuan tidak ditemukan' });
     }
@@ -346,29 +358,49 @@ export async function createPengajuanTracking(req: Request, res: Response) {
 
     // Cek apakah status master ada
     const statusMaster = await TrackingStatus.findByPk(tracking_status_id);
+    console.log('[DEBUG TRACKING STATUS MASTER]', statusMaster ? statusMaster.toJSON() : statusMaster);
     if (!statusMaster) {
       return res.status(404).json({ message: 'Status tracking tidak ditemukan' });
     }
 
     // Buat tracking record
-    const tracking = await PengajuanTracking.create({
-      pengajuan_id: pengajuanId,
-      tracking_status_id,
-      status_name: statusMaster.status_name,
-      notes,
-      estimated_days,
-      tracked_by: user.id,
-      tracked_by_name: user.full_name
-    });
-
-    res.json({
-      success: true,
-      data: tracking
-    });
-
+    try {
+      console.log('[DEBUG] Akan membuat PengajuanTracking...');
+      const tracking = await PengajuanTracking.create({
+        pengajuan_id: pengajuanId,
+        tracking_status_id,
+        status_name: statusMaster.status_name,
+        notes,
+        estimated_days,
+        tracked_by: user.id,
+        tracked_by_name: user.full_name
+      });
+      console.log('[DEBUG SUKSES CREATE TRACKING]', tracking ? tracking.toJSON() : tracking);
+      res.json({
+        success: true,
+        data: tracking
+      });
+    } catch (createError) {
+      let errorStack = '';
+      if (createError instanceof Error) {
+        errorStack = createError.stack ?? '';
+      } else {
+        errorStack = String(createError);
+      }
+      console.error('[ERROR CREATE TRACKING]', createError, errorStack);
+      throw createError;
+    }
   } catch (error) {
-    console.error('Error in createPengajuanTracking:', error);
-    return res.status(500).json({ message: 'Internal server error' });
+    let errorMsg = '', errorStack = '';
+    if (error instanceof Error) {
+      errorMsg = error.message;
+      errorStack = error.stack ?? '';
+    } else {
+      errorMsg = String(error);
+      errorStack = '';
+    }
+    console.error('Error in createPengajuanTracking:', error, errorStack);
+    return res.status(500).json({ message: 'Internal server error', detail: errorMsg });
   }
 }
 
