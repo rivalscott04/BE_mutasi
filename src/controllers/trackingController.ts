@@ -6,6 +6,8 @@ import Pegawai from '../models/Pegawai';
 import Office from '../models/Office';
 import User from '../models/User';
 import { Op } from 'sequelize';
+import fs from 'fs';
+import path from 'path';
 
 // GET /api/tracking/status-master - Ambil semua status master (untuk dropdown)
 export async function getTrackingStatusMaster(req: Request, res: Response) {
@@ -320,8 +322,9 @@ export async function getPengajuanForTracking(req: Request, res: Response) {
 
 // POST /api/tracking/pengajuan/:pengajuanId - Input tracking status untuk berkas
 export async function createPengajuanTracking(req: Request, res: Response) {
+  let user: any = null;
   try {
-    const user = (req as any).user;
+    user = (req as any).user;
     const { pengajuanId } = req.params;
     const { tracking_status_id, notes, estimated_days } = req.body;
 
@@ -339,30 +342,25 @@ export async function createPengajuanTracking(req: Request, res: Response) {
       console.warn('[WARN] Role tidak diizinkan input tracking:', user.role);
       return res.status(403).json({ message: 'Unauthorized' });
     }
-
     if (!tracking_status_id) {
       console.warn('[WARN] tracking_status_id kosong');
       return res.status(400).json({ message: 'Tracking status harus diisi' });
     }
-
     // Cek apakah pengajuan ada dan sudah final approved
     const pengajuan = await Pengajuan.findByPk(pengajuanId);
     console.log('[DEBUG PENGAJUAN]', pengajuan ? pengajuan.toJSON() : pengajuan);
     if (!pengajuan) {
       return res.status(404).json({ message: 'Pengajuan tidak ditemukan' });
     }
-
     if (pengajuan.status !== 'final_approved') {
       return res.status(400).json({ message: 'Pengajuan harus sudah final approved untuk ditrack' });
     }
-
     // Cek apakah status master ada
     const statusMaster = await TrackingStatus.findByPk(tracking_status_id);
     console.log('[DEBUG TRACKING STATUS MASTER]', statusMaster ? statusMaster.toJSON() : statusMaster);
     if (!statusMaster) {
       return res.status(404).json({ message: 'Status tracking tidak ditemukan' });
     }
-
     // Buat tracking record
     try {
       console.log('[DEBUG] Akan membuat PengajuanTracking...');
@@ -382,12 +380,35 @@ export async function createPengajuanTracking(req: Request, res: Response) {
       });
     } catch (createError) {
       let errorStack = '';
+      let errorMsg = '';
       if (createError instanceof Error) {
         errorStack = createError.stack ?? '';
+        errorMsg = createError.message;
       } else {
         errorStack = String(createError);
+        errorMsg = String(createError);
       }
       console.error('[ERROR CREATE TRACKING]', createError, errorStack);
+
+      // --- LOG KE FILE ---
+      try {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const dir = path.resolve(__dirname, '../../logs');
+        const filename = `error-${y}-${m}-${d}.log`;
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        const logMessage = `[${now.toISOString()}] [TRACKING_CONTROLLER]\n` +
+          `User: ${user ? JSON.stringify({ id: user.id, email: user.email, full_name: user.full_name, role: user.role }) : '-'}\n` +
+          `Params: ${JSON.stringify(req.params)}\n` +
+          `Body: ${JSON.stringify(req.body)}\n` +
+          `ErrorMsg: ${errorMsg}\n` +
+          `ErrorStack: ${errorStack}\n\n`;
+        fs.appendFileSync(path.join(dir, filename), logMessage, 'utf8');
+      } catch (fileLogErr) {
+        console.error('[FILE_LOG_ERROR]', fileLogErr);
+      }
       throw createError;
     }
   } catch (error) {
@@ -400,6 +421,25 @@ export async function createPengajuanTracking(req: Request, res: Response) {
       errorStack = '';
     }
     console.error('Error in createPengajuanTracking:', error, errorStack);
+    // --- LOG ERROR KE FILE ---
+    try {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      const dir = path.resolve(__dirname, '../../logs');
+      const filename = `error-${y}-${m}-${d}.log`;
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const logMessage = `[${now.toISOString()}] [TRACKING_CONTROLLER-CATCH]\n` +
+        `User: ${user ? JSON.stringify({ id: user.id, email: user.email, full_name: user.full_name, role: user.role }) : '-'}\n` +
+        `Params: ${JSON.stringify(req.params)}\n` +
+        `Body: ${JSON.stringify(req.body)}\n` +
+        `ErrorMsg: ${errorMsg}\n` +
+        `ErrorStack: ${errorStack}\n\n`;
+      fs.appendFileSync(path.join(dir, filename), logMessage, 'utf8');
+    } catch (fileLogErr) {
+      console.error('[FILE_LOG_ERROR]', fileLogErr);
+    }
     return res.status(500).json({ message: 'Internal server error', detail: errorMsg });
   }
 }
