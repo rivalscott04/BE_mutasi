@@ -24,6 +24,10 @@ const app = express();
 
 const allowedOrigins = [
   'https://mutasisurat.rivaldev.site',
+  'https://bemutasi.rivaldev.site',
+  'http://bemutasi.rivaldev.site',
+  'http://103.41.207.103',
+  'https://103.41.207.103',
   'http://localhost:8080',
   'http://localhost:5173',
   'http://localhost:3000',
