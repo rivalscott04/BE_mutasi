@@ -24,7 +24,8 @@ import {
   replacePengajuanFile,
   editJabatanPengajuan,
   getPengajuanAuditLog,
-  getAvailableJabatan
+  getAvailableJabatan,
+  updatePengajuanStatus
 } from '../controllers/pengajuanController';
 import { authMiddleware } from '../middleware/auth';
 import { blockReadOnlyRoles } from '../middleware/role';
@@ -257,6 +258,9 @@ router.post('/:id/final-reject', authMiddleware, blockReadOnlyRoles, finalReject
 
 // Edit jabatan route (superadmin only)
 router.put('/:id/edit-jabatan', authMiddleware, blockReadOnlyRoles, editJabatanPengajuan);
+
+// Update status route (superadmin only)
+router.put('/:id/update-status', authMiddleware, blockReadOnlyRoles, updatePengajuanStatus);
 
 // Get audit log route (superadmin only)
 router.get('/:id/audit-log', authMiddleware, getPengajuanAuditLog);

@@ -2114,38 +2114,42 @@ export async function editJabatanPengajuan(req: AuthRequest, res: Response) {
       jenis_jabatan: jenis_jabatan
     });
 
-    // Check if files need adjustment
+    // SELALU reset status ke draft ketika jabatan diubah
+    // Ini memastikan operator bisa upload file baru yang diperlukan untuk jabatan baru
     let statusUpdate: { status?: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted' | 'admin_wilayah_approved' | 'admin_wilayah_rejected' | 'admin_wilayah_submitted' | 'final_approved' | 'final_rejected'; catatan?: string } = {};
     let additionalNote = '';
 
-    if (missingFiles.length > 0 || extraFiles.length > 0) {
-      // Reset status to draft if files don't match
-      statusUpdate = { 
-        status: 'draft',
-        catatan: `Jabatan diubah dari ${oldJenisJabatan} ke ${jenis_jabatan}. `
-      };
-      
-      if (missingFiles.length > 0) {
-        console.log('Missing files before format:', missingFiles);
-        const userFriendlyMissingFiles = missingFiles.map(formatFileNameToUserFriendly);
-        console.log('Missing files after format:', userFriendlyMissingFiles);
-        additionalNote += `Berkas yang kurang: ${userFriendlyMissingFiles.join(', ')}. `;
-      }
-      
-      if (extraFiles.length > 0) {
-        console.log('Extra files before format:', extraFiles);
-        const userFriendlyExtraFiles = extraFiles.map(formatFileNameToUserFriendly);
-        console.log('Extra files after format:', userFriendlyExtraFiles);
-        additionalNote += `Berkas yang tidak diperlukan: ${userFriendlyExtraFiles.join(', ')}. `;
-      }
-      
-      additionalNote += 'Silakan sesuaikan berkas yang diupload.';
-      
-      await pengajuan.update({
-        ...statusUpdate,
-        catatan: statusUpdate.catatan + additionalNote
-      });
+    // Reset status to draft SELALU ketika jabatan diubah
+    // Ini memastikan operator bisa upload file baru yang diperlukan untuk jabatan baru
+    statusUpdate = { 
+      status: 'draft',
+      catatan: `Jabatan diubah dari ${oldJenisJabatan} ke ${jenis_jabatan}. `
+    };
+    
+    if (missingFiles.length > 0) {
+      console.log('Missing files before format:', missingFiles);
+      const userFriendlyMissingFiles = missingFiles.map(formatFileNameToUserFriendly);
+      console.log('Missing files after format:', userFriendlyMissingFiles);
+      additionalNote += `Berkas yang kurang: ${userFriendlyMissingFiles.join(', ')}. `;
     }
+    
+    if (extraFiles.length > 0) {
+      console.log('Extra files before format:', extraFiles);
+      const userFriendlyExtraFiles = extraFiles.map(formatFileNameToUserFriendly);
+      console.log('Extra files after format:', userFriendlyExtraFiles);
+      additionalNote += `Berkas yang tidak diperlukan: ${userFriendlyExtraFiles.join(', ')}. `;
+    }
+    
+    if (missingFiles.length > 0 || extraFiles.length > 0) {
+      additionalNote += 'Silakan sesuaikan berkas yang diupload.';
+    } else {
+      additionalNote += 'Silakan pastikan semua berkas sesuai dengan jabatan baru.';
+    }
+    
+    await pengajuan.update({
+      ...statusUpdate,
+      catatan: statusUpdate.catatan + additionalNote
+    });
 
     // Buat audit log
     await PengajuanAuditLog.create({
@@ -2255,6 +2259,91 @@ export async function getPengajuanAuditLog(req: AuthRequest, res: Response) {
 }
 
 // Get available jabatan untuk edit
+// Update status pengajuan (superadmin only)
+export async function updatePengajuanStatus(req: AuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    const { status, reason } = req.body;
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Hanya superadmin yang bisa update status
+    if (user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only superadmin can update status' });
+    }
+
+    if (!status) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Status wajib diisi' 
+      });
+    }
+
+    // Validasi status yang diizinkan
+    const allowedStatuses = ['draft', 'submitted', 'approved', 'rejected', 'resubmitted', 
+      'admin_wilayah_approved', 'admin_wilayah_rejected', 'admin_wilayah_submitted', 
+      'final_approved', 'final_rejected'];
+    
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Status tidak valid. Status yang diizinkan: ${allowedStatuses.join(', ')}` 
+      });
+    }
+
+    const pengajuan = await Pengajuan.findByPk(id);
+    if (!pengajuan) {
+      return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
+    }
+
+    // Simpan nilai lama untuk audit log
+    const oldStatus = pengajuan.status;
+
+    // Update status
+    await pengajuan.update({
+      status: status as any,
+      catatan: reason ? `${pengajuan.catatan || ''}\n[Status diubah oleh superadmin: ${oldStatus} → ${status}] ${reason}`.trim() : pengajuan.catatan
+    });
+
+    // Buat audit log
+    await PengajuanAuditLog.create({
+      id: uuidv4(),
+      pengajuan_id: id,
+      action: 'status_changed',
+      field_name: 'status',
+      old_value: oldStatus,
+      new_value: status,
+      reason: reason || 'Status diubah oleh superadmin',
+      changed_by: user.id,
+      changed_by_name: user.full_name || user.email || 'Unknown User'
+    });
+
+    logger.info('Status pengajuan changed by superadmin', {
+      pengajuanId: id,
+      oldStatus,
+      newStatus: status,
+      changedBy: user.id,
+      reason: reason || 'No reason provided'
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Status pengajuan berhasil diubah',
+      data: {
+        pengajuan,
+        old_status: oldStatus,
+        new_status: status
+      }
+    });
+  } catch (error) {
+    console.error('Error in updatePengajuanStatus:', error);
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
 export async function getAvailableJabatan(req: AuthRequest, res: Response) {
   try {
     const user = req.user;
@@ -2304,5 +2393,6 @@ export default {
   replacePengajuanFile,
   editJabatanPengajuan,
   getPengajuanAuditLog,
-  getAvailableJabatan
+  getAvailableJabatan,
+  updatePengajuanStatus
 };
