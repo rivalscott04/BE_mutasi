@@ -27,6 +27,7 @@ import {
   getAvailableJabatan
 } from '../controllers/pengajuanController';
 import { authMiddleware } from '../middleware/auth';
+import { blockReadOnlyRoles } from '../middleware/role';
 import logger from '../utils/logger';
 
 const router = express.Router();
@@ -144,17 +145,17 @@ const handleMulterError = (err: any, req: any, res: any, next: any) => {
 // Routes
 router.get('/pegawai-grouped', authMiddleware, getPegawaiGroupedByKabupaten);
 router.get('/available-jabatan', authMiddleware, getAvailableJabatan);
-router.post('/', authMiddleware, createPengajuan);
-router.post('/:pengajuan_id/upload', authMiddleware, upload.single('file'), handleMulterError, uploadPengajuanFile);
-router.put('/:pengajuan_id/submit', authMiddleware, submitPengajuan);
+router.post('/', authMiddleware, blockReadOnlyRoles, createPengajuan);
+router.post('/:pengajuan_id/upload', authMiddleware, blockReadOnlyRoles, upload.single('file'), handleMulterError, uploadPengajuanFile);
+router.put('/:pengajuan_id/submit', authMiddleware, blockReadOnlyRoles, submitPengajuan);
 // Update multiple files (FormData: files[], file_types[])
-router.put('/:pengajuan_id/update-files', authMiddleware, upload.array('files'), handleMulterError, updatePengajuanFiles);
+router.put('/:pengajuan_id/update-files', authMiddleware, blockReadOnlyRoles, upload.array('files'), handleMulterError, updatePengajuanFiles);
 
 // File verification routes - HARUS SEBELUM ROUTE DENGAN PARAMETER
-router.put('/files/:file_id/verify', authMiddleware, verifyFile);
+router.put('/files/:file_id/verify', authMiddleware, blockReadOnlyRoles, verifyFile);
 
 // File replacement routes - HARUS SEBELUM ROUTE DENGAN PARAMETER
-router.put('/:pengajuan_id/files/:file_id/replace', authMiddleware, upload.single('file'), handleMulterError, replacePengajuanFile);
+router.put('/:pengajuan_id/files/:file_id/replace', authMiddleware, blockReadOnlyRoles, upload.single('file'), handleMulterError, replacePengajuanFile);
 
 // Download file endpoint - HARUS SEBELUM ROUTE DENGAN PARAMETER  
 router.get('/files/:file_id', authMiddleware, async (req, res) => {
@@ -222,23 +223,23 @@ router.get('/:pengajuan_id', authMiddleware, getPengajuanDetail);
 router.get('/', authMiddleware, getAllPengajuan);
 
 // Approval system routes
-router.put('/:id/approve', authMiddleware, approvePengajuan);
-router.put('/:id/reject', authMiddleware, rejectPengajuan);
-router.put('/:id/resubmit', authMiddleware, resubmitPengajuan);
+router.put('/:id/approve', authMiddleware, blockReadOnlyRoles, approvePengajuan);
+router.put('/:id/reject', authMiddleware, blockReadOnlyRoles, rejectPengajuan);
+router.put('/:id/resubmit', authMiddleware, blockReadOnlyRoles, resubmitPengajuan);
 
 // Final approval system routes (superadmin only)
-router.post('/:id/final-approve', authMiddleware, finalApprovePengajuan);
-router.post('/:id/final-reject', authMiddleware, finalRejectPengajuan);
+router.post('/:id/final-approve', authMiddleware, blockReadOnlyRoles, finalApprovePengajuan);
+router.post('/:id/final-reject', authMiddleware, blockReadOnlyRoles, finalRejectPengajuan);
 
 // Edit jabatan route (superadmin only)
-router.put('/:id/edit-jabatan', authMiddleware, editJabatanPengajuan);
+router.put('/:id/edit-jabatan', authMiddleware, blockReadOnlyRoles, editJabatanPengajuan);
 
 // Get audit log route (superadmin only)
 router.get('/:id/audit-log', authMiddleware, getPengajuanAuditLog);
 
 // Get available jabatan route moved to top to avoid conflict with /:id route
 
-router.delete('/:id', authMiddleware, deletePengajuan);
+router.delete('/:id', authMiddleware, blockReadOnlyRoles, deletePengajuan);
 
 
 

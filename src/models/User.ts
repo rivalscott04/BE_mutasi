@@ -6,7 +6,7 @@ interface UserAttributes {
   email: string;
   password_hash: string;
   full_name: string;
-  role: 'admin' | 'operator' | 'user' | 'admin_wilayah';
+  role: 'admin' | 'operator' | 'user' | 'admin_wilayah' | 'bimas';
   office_id?: string;
   wilayah?: string;
   is_active: boolean;
@@ -21,7 +21,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   public email!: string;
   public password_hash!: string;
   public full_name!: string;
-  public role!: 'admin' | 'operator' | 'user' | 'admin_wilayah';
+  public role!: 'admin' | 'operator' | 'user' | 'admin_wilayah' | 'bimas';
   public office_id?: string;
   public wilayah?: string;
   public is_active!: boolean;
@@ -50,7 +50,7 @@ User.init(
       allowNull: false,
     },
     role: {
-      type: DataTypes.ENUM('admin', 'operator', 'user', 'admin_wilayah'),
+      type: DataTypes.ENUM('admin', 'operator', 'user', 'admin_wilayah', 'bimas'),
       allowNull: false,
     },
     office_id: {

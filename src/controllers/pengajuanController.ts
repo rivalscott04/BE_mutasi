@@ -1026,31 +1026,66 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
     }
 
     const where: any = {};
-    if (status) {
-      where.status = status;
-    }
-
+    
     // RBAC filter
     // - admin: lihat semua
     // - user (admin pusat read-only): global final_approved saja
     // - admin_wilayah: lihat pengajuan dari wilayahnya (termasuk yang sudah di-submit ke superadmin)
     // - operator: lihat pengajuan yang mereka buat
+    // - bimas: read-only, hanya pengajuan dengan jenis_jabatan penghulu/penyuluh, status selain draft/rejected
     if (user.role === 'user') {
       where.status = 'final_approved';
     } else if (user.role === 'admin_wilayah') {
       where.office_id = user.office_id;
+      // Admin wilayah bisa filter by status dari query parameter
+      if (status) {
+        where.status = status;
+      }
     } else if (user.role === 'operator') {
       where.created_by = user.id;
+      // Operator bisa filter by status dari query parameter
+      if (status) {
+        where.status = status;
+      }
+    } else if (user.role === 'bimas') {
+      // Filter status: selain draft dan rejected (mandatory untuk bimas)
+      where.status = { [Op.notIn]: ['draft', 'rejected'] };
+      
+      // Filter jenis_jabatan: hanya penghulu dan penyuluh (cek di job_type_configuration)
+      const bimasJobTypes = await JobTypeConfiguration.findAll({
+        where: {
+          is_active: true,
+          jenis_jabatan: {
+            [Op.or]: [
+              { [Op.like]: '%penghulu%' },
+              { [Op.like]: '%penyuluh%' }
+            ]
+          }
+        },
+        attributes: ['jenis_jabatan']
+      });
+      
+      const allowedJenisJabatan = bimasJobTypes.map(jt => jt.jenis_jabatan);
+      if (allowedJenisJabatan.length > 0) {
+        where.jenis_jabatan = { [Op.in]: allowedJenisJabatan };
+      } else {
+        // Jika tidak ada jenis jabatan yang match, return empty result
+        where.jenis_jabatan = { [Op.in]: [] };
+      }
+    } else {
+      // admin: bisa filter by status dari query parameter
+      if (status) {
+        where.status = status;
+      }
     }
-    // admin: no restrictions
 
-    // Filter berdasarkan created_by (siapa yang membuat)
-    if (created_by && created_by !== 'all') {
+    // Filter berdasarkan created_by (siapa yang membuat) - hanya untuk admin
+    if (created_by && created_by !== 'all' && user.role === 'admin') {
       where.created_by = created_by;
     }
 
-    // Filter berdasarkan jenis jabatan
-    if (jenis_jabatan && jenis_jabatan !== 'all') {
+    // Filter berdasarkan jenis jabatan dari query parameter - hanya untuk admin (bimas sudah di-filter di atas)
+    if (jenis_jabatan && jenis_jabatan !== 'all' && user.role === 'admin') {
       where.jenis_jabatan = jenis_jabatan;
     }
 
