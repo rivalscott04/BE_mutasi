@@ -907,7 +907,11 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
     let jobTypeConfig = null;
     
     try {
-      // Get from job type configuration
+      // Get from job type configuration - use case-insensitive comparison
+      const jenisJabatanLower = pengajuan.jenis_jabatan?.toLowerCase().trim();
+      console.log('🔍 Looking for job type config with jenis_jabatan:', pengajuan.jenis_jabatan, '(normalized:', jenisJabatanLower, ')');
+      
+      // Try exact match first
       jobTypeConfig = await JobTypeConfiguration.findOne({
         where: { 
           jenis_jabatan: pengajuan.jenis_jabatan,
@@ -915,17 +919,48 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
         }
       });
       
+      // If not found, try case-insensitive match
+      if (!jobTypeConfig && jenisJabatanLower) {
+        const allConfigs = await JobTypeConfiguration.findAll({
+          where: { 
+            is_active: true 
+          }
+        });
+        jobTypeConfig = allConfigs.find(config => 
+          config.jenis_jabatan?.toLowerCase().trim() === jenisJabatanLower
+        ) || null;
+        
+        if (jobTypeConfig) {
+          console.log('✅ Found job type config with case-insensitive match:', jobTypeConfig.jenis_jabatan);
+        }
+      }
+      
       if (jobTypeConfig && jobTypeConfig.required_files) {
         // Parse JSON string to array
         try {
           requiredFiles = JSON.parse(jobTypeConfig.required_files);
           console.log('✅ Using job type config for:', pengajuan.jenis_jabatan);
+          console.log('✅ Found config jenis_jabatan:', jobTypeConfig.jenis_jabatan);
+          console.log('✅ Required files count:', requiredFiles.length);
           console.log('✅ Required files:', requiredFiles);
         } catch (parseError) {
           console.error('Error parsing required_files JSON:', parseError);
           requiredFiles = [];
         }
       } else {
+        // Log why we're using fallback
+        if (!jobTypeConfig) {
+          console.log('⚠️  No job type config found for:', pengajuan.jenis_jabatan);
+          // Try to see what configs exist
+          const allConfigs = await JobTypeConfiguration.findAll({
+            where: { is_active: true },
+            attributes: ['id', 'jenis_jabatan']
+          });
+          console.log('⚠️  Available job type configs:', allConfigs.map(c => c.jenis_jabatan));
+        } else {
+          console.log('⚠️  Job type config found but required_files is empty');
+        }
+        
         // Fallback: use default required files based on jenis_jabatan
         const fungsionalUmum = [
           'surat_pengantar',
@@ -973,8 +1008,9 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
           ]
         };
         
-        requiredFiles = defaultFiles[pengajuan.jenis_jabatan] || fungsionalUmum;
+        requiredFiles = defaultFiles[pengajuan.jenis_jabatan?.toLowerCase() || ''] || fungsionalUmum;
         console.log('⚠️  Using fallback for:', pengajuan.jenis_jabatan);
+        console.log('⚠️  Fallback required files count:', requiredFiles.length);
         console.log('⚠️  Required files:', requiredFiles);
       }
     } catch (error) {
