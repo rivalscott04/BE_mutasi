@@ -161,7 +161,9 @@ router.put('/:pengajuan_id/files/:file_id/replace', authMiddleware, blockReadOnl
 router.get('/files/:file_id', authMiddleware, async (req, res) => {
   try {
     const { file_id } = req.params;
+    const user = (req as any).user;
     const PengajuanFile = require('../models/PengajuanFile').default;
+    const Pengajuan = require('../models/Pengajuan').default;
     
     console.log(`🔍 Requesting file with ID: ${file_id}`);
     
@@ -172,6 +174,28 @@ router.get('/files/:file_id', authMiddleware, async (req, res) => {
     }
 
     console.log(`📁 File record found: ${file.file_name}, path: ${file.file_path}`);
+
+    // Check if user has access to the pengajuan that owns this file
+    const pengajuan = await Pengajuan.findByPk(file.pengajuan_id);
+    if (!pengajuan) {
+      return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
+    }
+
+    // Apply same access control as getPengajuanDetail
+    if (user.role === 'user') {
+      if (pengajuan.status !== 'final_approved') {
+        return res.status(403).json({ success: false, message: 'Forbidden: Hanya pengajuan final_approved yang dapat diakses' });
+      }
+    } else if (user.role === 'admin_wilayah') {
+      if (pengajuan.office_id !== user.office_id) {
+        return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak memiliki akses ke file ini' });
+      }
+    } else if (user.role === 'bimas') {
+      // Bimas can access files from pengajuan kabupaten
+      // No office_id restriction for bimas role
+    } else if (user.role !== 'admin' && pengajuan.office_id !== user.office_id) {
+      return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak memiliki akses ke file ini' });
+    }
 
     // Check if file exists on disk
     const fs = require('fs');

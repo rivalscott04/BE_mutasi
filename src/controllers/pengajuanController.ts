@@ -884,6 +884,7 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
     // - admin: full access
     // - admin_wilayah: access to pengajuan from their office for verification
     // - user (admin pusat read-only): global access only for final_approved
+    // - bimas: can access pengajuan kabupaten (can view detail and files)
     // - others: must match office_id
     if (user.role === 'user') {
       if (pengajuan.status !== 'final_approved') {
@@ -894,6 +895,9 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
       if (pengajuan.office_id !== user.office_id) {
         return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak memiliki akses ke pengajuan ini' });
       }
+    } else if (user.role === 'bimas') {
+      // Bimas can access pengajuan kabupaten (can view detail and files)
+      // No office_id restriction for bimas role
     } else if (user.role !== 'admin' && pengajuan.office_id !== user.office_id) {
       return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak memiliki akses ke pengajuan ini' });
     }
