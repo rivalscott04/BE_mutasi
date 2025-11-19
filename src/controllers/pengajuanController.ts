@@ -2052,11 +2052,17 @@ export async function finalRejectPengajuan(req: AuthRequest, res: Response) {
     }
 
     // Update status pengajuan menjadi admin_wilayah_rejected untuk memungkinkan resubmit
+    const rejectionTimestamp = new Date();
+    const rejectionIdentity = user.email || user.id;
+
     await pengajuan.update({
       status: 'admin_wilayah_rejected',
-      rejected_by: user.email || user.id,
-      rejected_at: new Date(),
-      rejection_reason: rejection_reason.trim()
+      rejected_by: rejectionIdentity,
+      rejected_at: rejectionTimestamp,
+      rejection_reason: rejection_reason.trim(),
+      final_rejected_by: rejectionIdentity,
+      final_rejected_at: rejectionTimestamp,
+      final_rejection_reason: rejection_reason.trim()
     });
 
 
