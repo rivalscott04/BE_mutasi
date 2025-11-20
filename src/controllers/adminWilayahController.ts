@@ -464,9 +464,10 @@ export async function submitToSuperadmin(req: Request, res: Response) {
     }
 
     const isResubmittingAfterFinalReject = pengajuan.status === 'admin_wilayah_rejected' && !!(pengajuan as any).final_rejected_at;
+    const isResubmittingAfterReject = pengajuan.status === 'admin_wilayah_rejected';
 
-    // Hanya bisa submit ke superadmin jika sudah diapprove admin wilayah
-    if (pengajuan.status !== 'admin_wilayah_approved' && !isResubmittingAfterFinalReject) {
+    // Hanya bisa submit ke superadmin jika sudah diapprove admin wilayah atau sedang resubmit setelah ditolak
+    if (pengajuan.status !== 'admin_wilayah_approved' && !isResubmittingAfterFinalReject && !isResubmittingAfterReject) {
       return res.status(400).json({ message: 'Pengajuan harus disetujui Admin Wilayah sebelum diajukan ke Superadmin' });
     }
 
@@ -492,7 +493,7 @@ export async function submitToSuperadmin(req: Request, res: Response) {
     }
 
     // Update status untuk review superadmin
-    const resetFinalRejectionFields = isResubmittingAfterFinalReject ? {
+    const resetFinalRejectionFields = (isResubmittingAfterFinalReject || isResubmittingAfterReject) ? {
       final_rejected_by: null,
       final_rejected_at: null,
       final_rejection_reason: null,
