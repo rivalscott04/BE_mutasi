@@ -149,7 +149,7 @@ export async function getPengajuanDetail(req: Request, res: Response) {
         { 
           model: PengajuanFile, 
           as: 'files',
-          attributes: ['id', 'file_type', 'file_category', 'file_name', 'file_size', 'uploaded_by', 'uploaded_by_role', 'uploaded_by_name', 'uploaded_by_office', 'created_at']
+          attributes: ['id', 'file_type', 'file_category', 'file_name', 'file_size', 'uploaded_by', 'uploaded_by_role', 'uploaded_by_name', 'uploaded_by_office', 'verification_status', 'verification_notes', 'created_at']
         }
       ]
     });
