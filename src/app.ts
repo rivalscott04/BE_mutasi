@@ -54,7 +54,8 @@ app.use(sessionMiddleware);
 // JSON parsing with better error handling
 app.use(express.json({ limit: '10mb' }));
 
-app.use(express.urlencoded({ extended: true }));
+// URL encoded parsing with limit for file uploads (multer uses multipart, but this prevents conflicts)
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Impersonation tracking middleware
 app.use(trackImpersonation);
@@ -110,6 +111,15 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     return res.status(400).json({ 
       message: 'Invalid JSON format in request body',
       error: 'JSON parsing failed'
+    });
+  }
+  
+  // Handle "request entity too large" errors
+  if (err.type === 'entity.too.large' || err.message?.includes('request entity too large') || err.status === 413) {
+    return res.status(413).json({ 
+      success: false,
+      message: 'File terlalu besar. Untuk SKP 2 Tahun Terakhir maksimal 1.6MB, file lain maksimal 500KB.',
+      error: 'Request entity too large'
     });
   }
   

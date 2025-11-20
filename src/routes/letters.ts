@@ -9,9 +9,9 @@ const router = Router();
 
 router.get('/', getAllLetters);
 router.get('/:id', getLetterById);
-router.post('/', requireRole('admin', 'operator'), createLetter);
-router.put('/:id', requireRole('admin', 'operator'), updateLetter);
-router.delete('/:id', requireRole('admin', 'operator'), deleteLetter);
-router.post('/:id/generate-pdf', requireRole('admin', 'operator'), generatePdfLetter);
+router.post('/', requireRole('admin', 'operator', 'kanwil'), createLetter);
+router.put('/:id', requireRole('admin', 'operator', 'kanwil'), updateLetter);
+router.delete('/:id', requireRole('admin', 'operator', 'kanwil'), deleteLetter);
+router.post('/:id/generate-pdf', requireRole('admin', 'operator', 'kanwil'), generatePdfLetter);
 
 export default router; 

@@ -6,7 +6,8 @@ import {
   getPegawaiGroupedByKabupaten, 
   createPengajuan, 
   uploadPengajuanFile, 
-  submitPengajuan, 
+  submitPengajuan,
+  submitKanwil,
   getPengajuanDetail,
   getAllPengajuan,
   approvePengajuan,
@@ -149,6 +150,7 @@ router.get('/available-jabatan', authMiddleware, getAvailableJabatan);
 router.post('/', authMiddleware, blockReadOnlyRoles, createPengajuan);
 router.post('/:pengajuan_id/upload', authMiddleware, blockReadOnlyRoles, upload.single('file'), handleMulterError, uploadPengajuanFile);
 router.put('/:pengajuan_id/submit', authMiddleware, blockReadOnlyRoles, submitPengajuan);
+router.post('/:pengajuan_id/submit-kanwil', authMiddleware, blockReadOnlyRoles, submitKanwil);
 // Update multiple files (FormData: files[], file_types[])
 router.put('/:pengajuan_id/update-files', authMiddleware, blockReadOnlyRoles, upload.array('files'), handleMulterError, updatePengajuanFiles);
 

@@ -6,7 +6,7 @@ interface UserAttributes {
   email: string;
   password_hash: string;
   full_name: string;
-  role: 'admin' | 'operator' | 'user' | 'admin_wilayah' | 'bimas';
+  role: 'admin' | 'operator' | 'user' | 'admin_wilayah' | 'bimas' | 'kanwil';
   office_id?: string;
   wilayah?: string;
   is_active: boolean;
@@ -50,7 +50,7 @@ User.init(
       allowNull: false,
     },
     role: {
-      type: DataTypes.ENUM('admin', 'operator', 'user', 'admin_wilayah', 'bimas'),
+      type: DataTypes.ENUM('admin', 'operator', 'user', 'admin_wilayah', 'bimas', 'kanwil'),
       allowNull: false,
     },
     office_id: {

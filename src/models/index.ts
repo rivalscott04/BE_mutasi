@@ -41,6 +41,8 @@ Letter.hasMany(LetterFile, { foreignKey: 'letter_id', as: 'files', onDelete: 'CA
 
 // Relasi Pengajuan - Pegawai
 Pengajuan.belongsTo(Pegawai, { foreignKey: 'pegawai_nip', as: 'pegawai', targetKey: 'nip' });
+Pengajuan.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+User.hasMany(Pengajuan, { foreignKey: 'created_by', as: 'pengajuan' });
 Pegawai.hasMany(Pengajuan, { foreignKey: 'pegawai_nip', as: 'pengajuan', sourceKey: 'nip' });
 
 // Relasi Pengajuan - Office

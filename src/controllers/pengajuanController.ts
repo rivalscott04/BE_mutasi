@@ -425,7 +425,7 @@ export async function createPengajuan(req: AuthRequest, res: Response) {
 export async function uploadPengajuanFile(req: AuthRequest, res: Response) {
   try {
     const { pengajuan_id } = req.params;
-    const { file_type } = req.body;
+    const { file_type, file_category } = req.body;
     const file = req.file as any;
     const user = req.user;
 
@@ -514,8 +514,56 @@ export async function uploadPengajuanFile(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
     }
 
-    // Office access check (admin dan admin_wilayah dapat akses pengajuan kantornya)
-    if (user?.role !== 'admin' && user?.role !== 'admin_wilayah' && user?.office_id && pengajuan.office_id !== user.office_id) {
+    // Validasi: Pastikan file yang diupload sesuai dengan jabatan pengajuan
+    if (pengajuan.jabatan_id) {
+      const jobTypeConfig = await JobTypeConfiguration.findByPk(pengajuan.jabatan_id);
+      if (jobTypeConfig && jobTypeConfig.required_files) {
+        let requiredFiles: string[] = [];
+        try {
+          requiredFiles = JSON.parse(jobTypeConfig.required_files);
+        } catch (parseError) {
+          logger.error('Error parsing required_files', { parseError, jabatanId: pengajuan.jabatan_id });
+        }
+
+        // Cek apakah file_type ada di requiredFiles untuk jabatan pengajuan
+        const isRequiredFile = requiredFiles.includes(file_type);
+        
+        // Untuk admin wilayah files, cek di admin wilayah config
+        let isAdminWilayahFile = false;
+        if (file_category === 'admin_wilayah') {
+          const AdminWilayahFileConfig = (await import('../models/AdminWilayahFileConfig')).default;
+          const adminWilayahConfig = await AdminWilayahFileConfig.findOne({
+            where: {
+              jenis_jabatan_id: pengajuan.jabatan_id,
+              file_type: file_type,
+              is_active: true
+            }
+          });
+          isAdminWilayahFile = !!adminWilayahConfig;
+        }
+
+        if (!isRequiredFile && !isAdminWilayahFile) {
+          logger.error('File upload failed - file type not allowed for this jabatan', {
+            pengajuanId: pengajuan_id,
+            fileType: file_type,
+            jabatanId: pengajuan.jabatan_id,
+            jenisJabatan: pengajuan.jenis_jabatan,
+            requiredFiles: requiredFiles,
+            fileName: file.originalname,
+            userId: user?.id,
+            ip: req.ip
+          });
+          
+          return res.status(400).json({
+            success: false,
+            message: `File "${file_type}" tidak sesuai dengan jabatan pengajuan "${pengajuan.jenis_jabatan}". Silakan upload file yang sesuai dengan jabatan pengajuan.`
+          });
+        }
+      }
+    }
+
+    // Office access check (admin, admin_wilayah, dan kanwil dapat akses pengajuan kantornya)
+    if (user?.role !== 'admin' && user?.role !== 'admin_wilayah' && user?.role !== 'kanwil' && user?.office_id && pengajuan.office_id !== user.office_id) {
       return res.status(403).json({ success: false, message: 'Forbidden: Anda hanya dapat mengelola pengajuan dari kantor Anda' });
     }
 
@@ -539,7 +587,8 @@ export async function uploadPengajuanFile(req: AuthRequest, res: Response) {
       await existingFile.update({
         file_name: file.originalname,
         file_path: file.path,
-        file_size: file.size
+        file_size: file.size,
+        file_category: file_category || 'kabupaten'
       });
     } else {
       logger.info('Creating new file record', {
@@ -556,7 +605,8 @@ export async function uploadPengajuanFile(req: AuthRequest, res: Response) {
         file_type,
         file_name: file.originalname,
         file_path: file.path,
-        file_size: file.size
+        file_size: file.size,
+        file_category: file_category || 'kabupaten'
       });
     }
 
@@ -856,6 +906,113 @@ export async function submitPengajuan(req: AuthRequest, res: Response) {
   }
 }
 
+// Submit pengajuan kanwil (langsung ke admin, skip admin wilayah)
+export async function submitKanwil(req: AuthRequest, res: Response) {
+  try {
+    const { pengajuan_id } = req.params;
+    const { catatan } = req.body;
+    const user = req.user;
+
+    // Validasi: hanya role kanwil yang bisa submit
+    if (user?.role !== 'kanwil') {
+      return res.status(403).json({ success: false, message: 'Forbidden: Hanya role kanwil yang dapat menggunakan endpoint ini' });
+    }
+
+    const pengajuan = await Pengajuan.findByPk(pengajuan_id);
+    if (!pengajuan) {
+      return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
+    }
+
+    // Office access check
+    if (user?.office_id && pengajuan.office_id !== user.office_id) {
+      return res.status(403).json({ success: false, message: 'Forbidden: Anda tidak memiliki akses ke pengajuan ini' });
+    }
+
+    // Validasi: status harus draft
+    if (pengajuan.status !== 'draft') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Pengajuan hanya dapat disubmit saat status draft' 
+      });
+    }
+
+    // Get all uploaded files
+    const uploadedFiles = await PengajuanFile.findAll({
+      where: { pengajuan_id }
+    });
+
+    // Validasi file kabupaten (dari job type config)
+    if (pengajuan.jabatan_id) {
+      const JobTypeConfiguration = (await import('../models/JobTypeConfiguration')).default;
+      const jobTypeConfig = await JobTypeConfiguration.findByPk(pengajuan.jabatan_id);
+      
+      if (jobTypeConfig && jobTypeConfig.required_files) {
+        const requiredKabupatenFiles = Array.isArray(jobTypeConfig.required_files) 
+          ? jobTypeConfig.required_files 
+          : JSON.parse(jobTypeConfig.required_files);
+        
+        const uploadedKabupatenFiles = uploadedFiles.filter(f => 
+          !f.file_category || f.file_category === 'kabupaten'
+        );
+        
+        const missingKabupatenFiles = requiredKabupatenFiles.filter((fileType: string) => 
+          !uploadedKabupatenFiles.some(f => f.file_type === fileType)
+        );
+        
+        if (missingKabupatenFiles.length > 0) {
+          return res.status(400).json({ 
+            success: false, 
+            message: `File kabupaten belum lengkap. File yang belum diupload: ${missingKabupatenFiles.join(', ')}` 
+          });
+        }
+      }
+    }
+
+    // Validasi file admin wilayah (dari admin wilayah config)
+    if (pengajuan.jabatan_id) {
+      const AdminWilayahFileConfig = (await import('../models/AdminWilayahFileConfig')).default;
+      const adminWilayahConfigs = await AdminWilayahFileConfig.findAll({
+        where: { 
+          jenis_jabatan_id: pengajuan.jabatan_id,
+          is_active: true 
+        }
+      });
+      
+      if (adminWilayahConfigs.length > 0) {
+        const requiredAdminWilayahFiles = adminWilayahConfigs
+          .filter(config => config.is_required)
+          .map(config => config.file_type);
+        
+        const uploadedAdminWilayahFiles = uploadedFiles.filter(f => 
+          f.file_category === 'admin_wilayah'
+        );
+        
+        const missingAdminWilayahFiles = requiredAdminWilayahFiles.filter((fileType: string) => 
+          !uploadedAdminWilayahFiles.some(f => f.file_type === fileType)
+        );
+        
+        if (missingAdminWilayahFiles.length > 0) {
+          return res.status(400).json({ 
+            success: false, 
+            message: `File admin wilayah belum lengkap. File yang belum diupload: ${missingAdminWilayahFiles.join(', ')}` 
+          });
+        }
+      }
+    }
+
+    // Update status ke kanwil_submitted
+    await pengajuan.update({ 
+      status: 'kanwil_submitted',
+      catatan 
+    });
+
+    res.json({ success: true, data: pengajuan, message: 'Pengajuan kanwil berhasil disubmit ke admin' });
+  } catch (error) {
+    console.error('Error in submitKanwil:', error);
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal server error' });
+  }
+}
+
 // Get pengajuan detail
 export async function getPengajuanDetail(req: AuthRequest, res: Response) {
   try {
@@ -873,6 +1030,19 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
         { 
           model: PengajuanFile, 
           as: 'files'
+        },
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'full_name', 'email', 'role', 'office_id'],
+          include: [
+            {
+              model: Office,
+              as: 'office',
+              attributes: ['id', 'name', 'kabkota']
+            }
+          ],
+          required: false
         }
       ]
     });
@@ -1073,6 +1243,7 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
     // - user (admin pusat read-only): global final_approved saja
     // - admin_wilayah: lihat pengajuan dari wilayahnya (termasuk yang sudah di-submit ke superadmin)
     // - operator: lihat pengajuan yang mereka buat
+    // - kanwil: lihat pengajuan yang mereka buat
     // - bimas: read-only, hanya pengajuan dengan jenis_jabatan penghulu/penyuluh, status selain draft/rejected
     if (user.role === 'user') {
       where.status = 'final_approved';
@@ -1082,9 +1253,9 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       if (status) {
         where.status = status;
       }
-    } else if (user.role === 'operator') {
+    } else if (user.role === 'operator' || user.role === 'kanwil') {
       where.created_by = user.id;
-      // Operator bisa filter by status dari query parameter
+      // Operator/Kanwil bisa filter by status dari query parameter
       if (status) {
         where.status = status;
       }
@@ -1181,6 +1352,12 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
         },
         required: true
       };
+    }
+    
+    // Special handling for kanwil_submitted filter
+    if (status === 'kanwil_submitted') {
+      // kanwil_submitted is a direct status, no special file filtering needed
+      // The status filter in where clause already handles this
     }
 
     // For admin_wilayah_approved status, use a simpler approach to avoid count issues
@@ -1844,15 +2021,16 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
     // - user (admin pusat read-only): global final_approved saja
     // - admin_wilayah: lihat pengajuan dari wilayahnya (termasuk yang sudah di-submit ke superadmin)
     // - operator: lihat pengajuan yang mereka buat
+    // - kanwil: lihat pengajuan yang mereka buat
     if (user.role === 'user') {
       whereClause.status = 'final_approved';
       console.log('🔍 Read-only user filter - status: final_approved');
     } else if (user.role === 'admin_wilayah') {
       whereClause.office_id = user.office_id;
       console.log('🔍 Admin wilayah filter - office_id:', user.office_id);
-    } else if (user.role === 'operator') {
+    } else if (user.role === 'operator' || user.role === 'kanwil') {
       whereClause.created_by = user.id;
-      console.log('🔍 Operator filter - created_by:', user.id);
+      console.log('🔍 Operator/Kanwil filter - created_by:', user.id);
     }
     // admin: no restrictions
     
@@ -1935,11 +2113,13 @@ function getStatusDisplayName(status: string): string {
     'draft': 'Draft',
     'submitted': 'Diajukan',
     'approved': 'Disetujui',
-    'rejected': 'Ditolak',
+    'rejected': 'Ditolak Admin Wilayah',
     'resubmitted': 'Diajukan Ulang',
     'admin_wilayah_approved': 'Disetujui Admin Wilayah',
-    'admin_wilayah_rejected': 'Ditolak Admin Wilayah',
+    'admin_wilayah_rejected': 'Ditolak Superadmin',
     'admin_wilayah_submitted': 'Diajukan Admin Wilayah',
+    'kanwil_submitted': 'Diajukan Kanwil',
+    'kanwil_approved': 'Disetujui Kanwil',
     'final_approved': 'Final Approved',
     'final_rejected': 'Final Rejected'
   };
@@ -2034,11 +2214,12 @@ export async function finalApprovePengajuan(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
     }
 
-    // Hanya bisa approve final jika status admin_wilayah_submitted
-    if (pengajuan.status !== 'admin_wilayah_submitted') {
+    // Hanya bisa approve final jika status admin_wilayah_submitted atau kanwil_submitted
+    const currentStatus = pengajuan.status as string;
+    if (currentStatus !== 'admin_wilayah_submitted' && currentStatus !== 'kanwil_submitted') {
       return res.status(400).json({ 
         success: false, 
-        message: 'Hanya pengajuan yang sudah diajukan admin wilayah yang bisa diapprove final' 
+        message: 'Hanya pengajuan yang sudah diajukan admin wilayah atau kanwil yang bisa diapprove final' 
       });
     }
 
@@ -2091,20 +2272,25 @@ export async function finalRejectPengajuan(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
     }
 
-    // Hanya bisa reject final jika status admin_wilayah_submitted
-    if (pengajuan.status !== 'admin_wilayah_submitted') {
+    // Hanya bisa reject final jika status admin_wilayah_submitted atau kanwil_submitted
+    const currentStatus = pengajuan.status as string;
+    if (currentStatus !== 'admin_wilayah_submitted' && currentStatus !== 'kanwil_submitted') {
       return res.status(400).json({ 
         success: false, 
-        message: 'Hanya pengajuan yang sudah diajukan admin wilayah yang bisa direject final' 
+        message: 'Hanya pengajuan yang sudah diajukan admin wilayah atau kanwil yang bisa direject final' 
       });
     }
 
-    // Update status pengajuan menjadi admin_wilayah_rejected untuk memungkinkan resubmit
+    // Update status pengajuan
+    // Untuk admin_wilayah_submitted: kembali ke admin_wilayah_rejected
+    // Untuk kanwil_submitted: kembali ke draft agar kanwil bisa revisi
     const rejectionTimestamp = new Date();
     const rejectionIdentity = user.email || user.id;
+    
+    const newStatus = (pengajuan.status as string) === 'kanwil_submitted' ? 'draft' : 'admin_wilayah_rejected';
 
     await pengajuan.update({
-      status: 'admin_wilayah_rejected',
+      status: newStatus,
       rejected_by: rejectionIdentity,
       rejected_at: rejectionTimestamp,
       rejection_reason: rejection_reason.trim(),

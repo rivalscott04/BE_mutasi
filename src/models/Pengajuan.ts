@@ -29,7 +29,7 @@ interface PengajuanAttributes {
   total_dokumen: number;
   jenis_jabatan: string;
   jabatan_id?: number | null;
-  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted' | 'admin_wilayah_approved' | 'admin_wilayah_rejected' | 'admin_wilayah_submitted' | 'final_approved' | 'final_rejected';
+  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'resubmitted' | 'admin_wilayah_approved' | 'admin_wilayah_rejected' | 'admin_wilayah_submitted' | 'kanwil_submitted' | 'kanwil_approved' | 'final_approved' | 'final_rejected';
   catatan?: string | null;
   rejection_reason?: string | null;
   rejected_by?: string | null;
@@ -108,7 +108,7 @@ Pengajuan.init({
     allowNull: true 
   },
   status: { 
-    type: DataTypes.ENUM('draft', 'submitted', 'approved', 'rejected', 'resubmitted', 'admin_wilayah_approved', 'admin_wilayah_rejected', 'admin_wilayah_submitted', 'final_approved', 'final_rejected'), 
+    type: DataTypes.ENUM('draft', 'submitted', 'approved', 'rejected', 'resubmitted', 'admin_wilayah_approved', 'admin_wilayah_rejected', 'admin_wilayah_submitted', 'kanwil_submitted', 'kanwil_approved', 'final_approved', 'final_rejected'), 
     defaultValue: 'draft' 
   },
   catatan: { 

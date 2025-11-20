@@ -27,6 +27,11 @@ export async function createUser(req: Request, res: Response) {
       return res.status(400).json({ message: 'Email sudah terdaftar' });
     }
     
+    // Validasi: role kanwil wajib punya office_id
+    if (role === 'kanwil' && (!office_id || office_id === '')) {
+      return res.status(400).json({ message: 'Role kanwil wajib memiliki office_id' });
+    }
+    
     const password_hash = await hashPassword(password);
     
     // Convert empty string to null for office_id
@@ -79,10 +84,22 @@ export async function updateUser(req: Request, res: Response) {
     if (email) user.email = email;
     if (password) user.password_hash = await hashPassword(password);
     if (full_name) user.full_name = full_name;
-    if (role) user.role = role;
+    if (role) {
+      // Validasi: role kanwil wajib punya office_id
+      const newRole = role;
+      const finalOfficeId = office_id !== undefined ? (office_id === '' ? null : office_id) : user.office_id;
+      if (newRole === 'kanwil' && (!finalOfficeId || finalOfficeId === '')) {
+        return res.status(400).json({ message: 'Role kanwil wajib memiliki office_id' });
+      }
+      user.role = newRole;
+    }
     if (office_id !== undefined) {
       // Convert empty string to null for office_id
       user.office_id = office_id === '' ? null : office_id;
+      // Validasi: jika role sudah kanwil, pastikan office_id tidak null
+      if (user.role === 'kanwil' && !user.office_id) {
+        return res.status(400).json({ message: 'Role kanwil wajib memiliki office_id' });
+      }
     }
     if (typeof is_active === 'boolean') user.is_active = is_active;
     
