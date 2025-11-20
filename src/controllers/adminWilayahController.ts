@@ -287,9 +287,9 @@ export async function rejectPengajuan(req: Request, res: Response) {
       return res.status(400).json({ message: 'Pengajuan harus berstatus submitted untuk ditolak Admin Wilayah' });
     }
 
-    // Update status pengajuan
+    // Update status pengajuan - Admin wilayah reject pengajuan operator = status 'rejected'
     await pengajuan.update({ 
-      status: 'admin_wilayah_rejected',
+      status: 'rejected',
       rejection_reason: rejection_reason,
       catatan: notes || 'Ditolak oleh Admin Wilayah',
       rejected_by: user.id,

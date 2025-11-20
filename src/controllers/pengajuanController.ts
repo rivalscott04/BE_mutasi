@@ -13,6 +13,7 @@ import { AuthRequest } from '../middleware/auth';
 import logger from '../utils/logger';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import AdminWilayahFileConfig from '../models/AdminWilayahFileConfig';
 
 // Helper function to format file names to user-friendly format
 function formatFileNameToUserFriendly(fileName: string): string {
@@ -1124,8 +1125,8 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       where.created_by = created_by;
     }
 
-    // Filter berdasarkan jenis jabatan dari query parameter - hanya untuk admin (bimas sudah di-filter di atas)
-    if (jenis_jabatan && jenis_jabatan !== 'all' && user.role === 'admin') {
+    // Filter berdasarkan jenis jabatan dari query parameter - untuk admin dan user (bimas sudah di-filter di atas)
+    if (jenis_jabatan && jenis_jabatan !== 'all' && (user.role === 'admin' || user.role === 'user')) {
       where.jenis_jabatan = jenis_jabatan;
     }
 
@@ -1735,6 +1736,53 @@ export async function verifyFile(req: AuthRequest, res: Response) {
       verified_by: user.id,
       verified_at: new Date()
     });
+
+    // Jika superadmin reject file admin_wilayah, cek apakah semua file admin wilayah ditolak
+    // Jika ya, ubah status pengajuan ke admin_wilayah_rejected
+    if (user.role === 'admin' && file.file_category === 'admin_wilayah' && verification_status === 'rejected') {
+      const pengajuan = await Pengajuan.findByPk(file.pengajuan_id);
+      if (pengajuan && pengajuan.status === 'admin_wilayah_submitted') {
+        // Ambil konfigurasi file admin wilayah yang required
+        let requiredFileTypes: string[] = [];
+        try {
+          const jobType = await JobTypeConfiguration.findOne({
+            where: { jenis_jabatan: pengajuan.jenis_jabatan, is_active: true }
+          });
+          if (jobType) {
+            const jobTypeId = (jobType as any).id;
+            const requiredConfigs = await AdminWilayahFileConfig.findAll({
+              where: { jenis_jabatan_id: jobTypeId, is_required: true, is_active: true } as any
+            });
+            requiredFileTypes = requiredConfigs.map((c: any) => c.file_type);
+          }
+        } catch (error) {
+          console.error('Error fetching admin wilayah file config:', error);
+        }
+
+        // Cek apakah semua file admin wilayah yang required sudah ditolak
+        if (requiredFileTypes.length > 0) {
+          const allRequiredFiles = await PengajuanFile.findAll({
+            where: {
+              pengajuan_id: file.pengajuan_id,
+              file_category: 'admin_wilayah',
+              file_type: { [Op.in]: requiredFileTypes }
+            } as any
+          });
+
+          const allRejected = allRequiredFiles.every(f => f.verification_status === 'rejected');
+          
+          if (allRejected && allRequiredFiles.length === requiredFileTypes.length) {
+            // Semua file admin wilayah yang required sudah ditolak, ubah status pengajuan
+            await pengajuan.update({
+              status: 'admin_wilayah_rejected',
+              final_rejected_by: user.email || user.id,
+              final_rejected_at: new Date(),
+              final_rejection_reason: `Semua dokumen admin wilayah ditolak oleh Superadmin`
+            });
+          }
+        }
+      }
+    }
 
     res.json({ 
       success: true, 
