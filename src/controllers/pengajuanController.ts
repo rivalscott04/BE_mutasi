@@ -458,10 +458,10 @@ export async function uploadPengajuanFile(req: AuthRequest, res: Response) {
       return res.status(400).json({ success: false, message: 'File type tidak ditemukan' });
     }
 
-    // Enforce per-type file size limits (default 500KB, SKP 2 Tahun Terakhir up to 1.6MB)
-    const onePointSixMB = Math.floor(1.6 * 1024 * 1024);
+    // Enforce per-type file size limits (default 500KB, SKP 2 Tahun Terakhir up to 1.7MB)
+    const onePointSevenMB = Math.floor(1.7 * 1024 * 1024);
     const fiveHundredKB = 500 * 1024;
-    const allowedSize = file_type === 'skp_2_tahun_terakhir' ? onePointSixMB : fiveHundredKB;
+    const allowedSize = file_type === 'skp_2_tahun_terakhir' ? onePointSevenMB : fiveHundredKB;
     
     logger.info('File size validation', {
       fileType: file_type,
@@ -486,7 +486,7 @@ export async function uploadPengajuanFile(req: AuthRequest, res: Response) {
       return res.status(400).json({
         success: false,
         message: file_type === 'skp_2_tahun_terakhir'
-          ? 'File SKP 2 Tahun Terakhir maksimal 1.6MB.'
+          ? 'File SKP 2 Tahun Terakhir maksimal 1.7MB.'
           : 'File terlalu besar. Maksimal 500KB.'
       });
     }
