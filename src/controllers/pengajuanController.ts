@@ -1296,8 +1296,8 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       where.created_by = created_by;
     }
 
-    // Filter berdasarkan jenis jabatan dari query parameter - untuk admin dan user (bimas sudah di-filter di atas)
-    if (jenis_jabatan && jenis_jabatan !== 'all' && (user.role === 'admin' || user.role === 'user')) {
+    // Filter berdasarkan jenis jabatan dari query parameter - untuk admin, user, dan admin_wilayah (bimas sudah di-filter di atas)
+    if (jenis_jabatan && jenis_jabatan !== 'all' && (user.role === 'admin' || user.role === 'user' || user.role === 'admin_wilayah')) {
       where.jenis_jabatan = jenis_jabatan;
     }
 
