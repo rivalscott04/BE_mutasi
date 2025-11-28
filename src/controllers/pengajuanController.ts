@@ -2017,6 +2017,9 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
+    // Get active filters from query params (untuk menghitung count yang akurat)
+    const { jenis_jabatan, status, created_by, search } = req.query;
+
     // Semua user yang authenticated bisa akses filter options
     // (tidak perlu restrict ke admin saja karena filter options berguna untuk semua user)
     
@@ -2049,6 +2052,17 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
     // Build where clause based on user role for status filtering
     // Konsisten dengan getAllPengajuan
     let whereClause: any = {};
+    
+    // Apply active filters to whereClause untuk menghitung count yang akurat
+    if (jenis_jabatan && jenis_jabatan !== 'all' && (user.role === 'admin' || user.role === 'user' || user.role === 'admin_wilayah')) {
+      whereClause.jenis_jabatan = jenis_jabatan;
+    }
+    if (status && status !== 'all') {
+      whereClause.status = status;
+    }
+    if (created_by && created_by !== 'all' && user.role === 'admin') {
+      whereClause.created_by = created_by;
+    }
     
     console.log('🔍 Filter Options - User role:', user.role, 'Office ID:', user.office_id, 'User ID:', user.id);
     
@@ -2134,12 +2148,20 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
     let kabupatenOptions: Array<{ name: string; count: number }> = [];
     
     if (user.role === 'admin' || user.role === 'user') {
+      // Build include conditions
+      const includeConditions: any[] = [
+        { model: Office, as: 'office', attributes: ['kabkota', 'name'], required: false }
+      ];
+      
+      // Note: Search filter tidak perlu di-apply untuk count kabupaten groups
+      // karena search biasanya untuk nama pegawai, bukan kabupaten
+      // Count kabupaten groups harus tetap akurat berdasarkan filter jenis_jabatan, status, dll
+      
       // Get all unique kabupaten from pengajuan with their office
+      // Menggunakan whereClause yang sudah include filter aktif (jenis_jabatan, status, dll)
       const pengajuanWithOffice = await Pengajuan.findAll({
         where: whereClause,
-        include: [
-          { model: Office, as: 'office', attributes: ['kabkota', 'name'], required: false }
-        ],
+        include: includeConditions,
         attributes: ['id'],
         raw: false
       });
