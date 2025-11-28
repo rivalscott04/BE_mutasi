@@ -14,6 +14,13 @@ import logger from '../utils/logger';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import AdminWilayahFileConfig from '../models/AdminWilayahFileConfig';
+import { 
+  getKabupatenByGroupFromDB, 
+  kabupatenGroups, 
+  getAllGroupPatterns,
+  normalizeKabupatenName,
+  matchesKabupatenPattern
+} from '../config/kabupatenGroups';
 
 // Helper function to format file names to user-friendly format
 function formatFileNameToUserFriendly(fileName: string): string {
@@ -1228,7 +1235,7 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
 // Get all pengajuan
 export async function getAllPengajuan(req: AuthRequest, res: Response) {
   try {
-    const { status, page = 1, limit = 50, created_by, search, jenis_jabatan } = req.query;
+    const { status, page = 1, limit = 50, created_by, search, jenis_jabatan, kabupaten_group } = req.query;
     const user = req.user;
     
     if (!user) {
@@ -1323,6 +1330,35 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       { model: PengajuanFile, as: 'files', required: false },
       { model: Office, as: 'office', attributes: ['id', 'kabkota', 'name'], required: false }
     ];
+
+    // Handle kabupaten_group filter
+    if (kabupaten_group && kabupaten_group !== 'all') {
+      // Get all unique kabupaten from offices database
+      const allOffices = await Office.findAll({
+        attributes: ['kabkota'],
+        group: ['kabkota'],
+        raw: true
+      });
+      const allKabupatenFromDB = allOffices.map((o: any) => o.kabkota).filter(Boolean);
+      
+      // Get kabupaten that match the selected group (using pattern matching)
+      const kabupatenList = getKabupatenByGroupFromDB(
+        kabupaten_group as string,
+        allKabupatenFromDB
+      );
+      
+      if (kabupatenList.length > 0) {
+        includeConditions[2] = {
+          model: Office,
+          as: 'office',
+          attributes: ['id', 'kabkota', 'name'],
+          where: {
+            kabkota: { [Op.in]: kabupatenList }
+          },
+          required: true
+        };
+      }
+    }
 
     // Add search functionality
     if (search) {
@@ -2093,12 +2129,75 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
 
     console.log('🔍 Backend - Jenis jabatan options:', jenisJabatanOptions);
 
+    // Get kabupaten groups with counts (only for admin and user roles)
+    let kabupatenGroupOptions: Array<{ groupName: string; kabupaten: string[]; count: number }> = [];
+    let kabupatenOptions: Array<{ name: string; count: number }> = [];
+    
+    if (user.role === 'admin' || user.role === 'user') {
+      // Get all unique kabupaten from pengajuan with their office
+      const pengajuanWithOffice = await Pengajuan.findAll({
+        where: whereClause,
+        include: [
+          { model: Office, as: 'office', attributes: ['kabkota', 'name'], required: false }
+        ],
+        attributes: ['id'],
+        raw: false
+      });
+
+      // Count pengajuan per kabupaten
+      const kabupatenCounts: Record<string, number> = {};
+      pengajuanWithOffice.forEach((p: any) => {
+        const kab = p.office?.kabkota || p.office?.name || 'Lainnya';
+        kabupatenCounts[kab] = (kabupatenCounts[kab] || 0) + 1;
+      });
+
+      // Build kabupaten options (individual)
+      kabupatenOptions = Object.entries(kabupatenCounts)
+        .map(([name, count]) => ({ name, count: count as number }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      // Get all unique kabupaten from offices database for pattern matching
+      const allOffices = await Office.findAll({
+        attributes: ['kabkota'],
+        group: ['kabkota'],
+        raw: true
+      });
+      const allKabupatenFromDB = allOffices.map((o: any) => o.kabkota).filter(Boolean);
+
+      // Build group options with counts using pattern matching
+      for (const group of kabupatenGroups) {
+        // Get kabupaten from DB that match this group's patterns
+        const matchedKabupaten = getKabupatenByGroupFromDB(
+          group.groupName,
+          allKabupatenFromDB
+        );
+        
+        // Count pengajuan for matched kabupaten
+        let groupCount = 0;
+        for (const kab of matchedKabupaten) {
+          groupCount += kabupatenCounts[kab] || 0;
+        }
+
+        // Only include groups that have at least one kabupaten with data
+        // Always include Sumbawa group (even if count is 0, for completeness)
+        if (groupCount > 0 || group.groupName === 'Sumbawa') {
+          kabupatenGroupOptions.push({
+            groupName: group.groupName,
+            kabupaten: matchedKabupaten, // Use actual kabupaten names from DB
+            count: groupCount
+          });
+        }
+      }
+    }
+
     res.json({
       success: true,
       data: {
         users: users,
         statuses: statusOptions,
-        jenisJabatan: jenisJabatanOptions
+        jenisJabatan: jenisJabatanOptions,
+        kabupatenGroups: kabupatenGroupOptions,
+        kabupaten: kabupatenOptions
       }
     });
   } catch (error) {
