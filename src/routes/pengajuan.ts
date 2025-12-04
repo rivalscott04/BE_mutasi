@@ -26,7 +26,9 @@ import {
   editJabatanPengajuan,
   getPengajuanAuditLog,
   getAvailableJabatan,
-  updatePengajuanStatus
+  updatePengajuanStatus,
+  generateDownload,
+  downloadGeneratedZip
 } from '../controllers/pengajuanController';
 import { authMiddleware } from '../middleware/auth';
 import { blockReadOnlyRoles } from '../middleware/role';
@@ -243,6 +245,10 @@ router.get('/files/:file_id', authMiddleware, async (req, res) => {
 
 // Pengajuan routes - SETELAH FILE ROUTES
 router.get('/filter-options', authMiddleware, getFilterOptions);
+// Generate download ZIP route (admin only)
+router.post('/generate-download', authMiddleware, generateDownload);
+// Download generated ZIP file route (admin only)
+router.get('/download-generated/:file_id', authMiddleware, downloadGeneratedZip);
 // Rekap endpoints (aggregate + list) - for admin_wilayah (scoped) and superadmin (all)
 router.get('/rekap/aggregate', authMiddleware, getRekapAggregate);
 router.get('/rekap/list', authMiddleware, getRekapList);

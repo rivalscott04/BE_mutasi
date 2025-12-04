@@ -21,6 +21,9 @@ import {
   normalizeKabupatenName,
   matchesKabupatenPattern
 } from '../config/kabupatenGroups';
+import { getFileDisplayName } from '../utils/fileDisplayName';
+import archiver from 'archiver';
+import fs from 'fs';
 
 // Helper function to format file names to user-friendly format
 function formatFileNameToUserFriendly(fileName: string): string {
@@ -2770,6 +2773,336 @@ export async function getAvailableJabatan(req: AuthRequest, res: Response) {
   }
 }
 
+// Generate ZIP download by jabatan or kabupaten
+export async function generateDownload(req: AuthRequest, res: Response) {
+  try {
+    const user = req.user;
+    
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Hanya admin yang bisa generate download
+    if (user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only admin can generate download' });
+    }
+
+    const { filter_type, filter_value } = req.body;
+
+    if (!filter_type || !filter_value) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'filter_type dan filter_value wajib diisi' 
+      });
+    }
+
+    if (filter_type !== 'jabatan' && filter_type !== 'kabupaten') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'filter_type harus "jabatan" atau "kabupaten"' 
+      });
+    }
+
+    // Query pengajuan dengan status final_approved
+    const whereClause: any = {
+      status: 'final_approved'
+    };
+
+    if (filter_type === 'jabatan') {
+      whereClause.jenis_jabatan = filter_value;
+    } else if (filter_type === 'kabupaten') {
+      // Query by kabupaten melalui office
+      const offices = await Office.findAll({
+        where: {
+          kabkota: { [Op.like]: `%${filter_value}%` }
+        },
+        attributes: ['id']
+      });
+      
+      const officeIds = offices.map(o => o.id);
+      if (officeIds.length === 0) {
+        return res.status(404).json({ 
+          success: false, 
+          message: `Kabupaten "${filter_value}" tidak ditemukan` 
+        });
+      }
+      
+      whereClause.office_id = { [Op.in]: officeIds };
+    }
+
+    // Get all pengajuan dengan files
+    const pengajuanList = await Pengajuan.findAll({
+      where: whereClause,
+      include: [
+        {
+          model: Pegawai,
+          as: 'pegawai',
+          required: false,
+          attributes: ['nip', 'nama']
+        },
+        {
+          model: PengajuanFile,
+          as: 'files',
+          required: false,
+          attributes: ['id', 'file_type', 'file_name', 'file_path', 'file_category', 'created_at'],
+          order: [['created_at', 'DESC']] // Ambil yang terbaru dulu
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    if (pengajuanList.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Tidak ada pengajuan yang sesuai dengan filter' 
+      });
+    }
+
+    // Create generated-zips directory if it doesn't exist
+    const generatedZipsPath = path.join(__dirname, '../../uploads/generated-zips');
+    if (!fs.existsSync(generatedZipsPath)) {
+      fs.mkdirSync(generatedZipsPath, { recursive: true });
+    }
+
+    // Generate unique filename with timestamp
+    const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    const filterValueSafe = filter_value.replace(/[^a-zA-Z0-9]/g, '_');
+    const fileId = uuidv4();
+    const filename = `${fileId}-download-${filter_type}-${filterValueSafe}-${timestamp}.zip`;
+    const filePath = path.join(generatedZipsPath, filename);
+
+    // Setup ZIP archive to file
+    const output = fs.createWriteStream(filePath);
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Maximum compression
+    });
+
+    // Pipe archive to file
+    archive.pipe(output);
+
+    // Process each pengajuan
+    let processedCount = 0;
+    const totalCount = pengajuanList.length;
+
+    for (const pengajuan of pengajuanList) {
+      const pegawai = (pengajuan as any).pegawai;
+      const files = (pengajuan as any).files || [];
+      
+      if (!pegawai || !pegawai.nip || files.length === 0) {
+        continue;
+      }
+
+      const nip = pegawai.nip;
+      
+      // Group files by file_type, ambil yang terbaru
+      const fileMap = new Map<string, any>();
+      for (const file of files) {
+        const existing = fileMap.get(file.file_type);
+        if (!existing || new Date(file.created_at) > new Date(existing.created_at)) {
+          fileMap.set(file.file_type, file);
+        }
+      }
+
+      // Add files to ZIP dengan struktur: {NIP}/{display_name}/file.pdf
+      for (const [fileType, file] of fileMap.entries()) {
+        const displayName = getFileDisplayName(fileType);
+        const sourceFilePath = path.isAbsolute(file.file_path) 
+          ? file.file_path 
+          : path.resolve(__dirname, '../../', file.file_path);
+        
+        // Check if file exists
+        if (!fs.existsSync(sourceFilePath)) {
+          logger.warn('File not found, skipping', { filePath: sourceFilePath, pengajuanId: pengajuan.id });
+          continue;
+        }
+
+        // Sanitize folder names untuk menghindari karakter tidak valid
+        const safeNip = nip.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const safeDisplayName = displayName.replace(/[^a-zA-Z0-9\s_-]/g, '').trim();
+        const zipPath = `${safeNip}/${safeDisplayName}/${file.file_name}`;
+
+        archive.file(sourceFilePath, { name: zipPath });
+      }
+
+      processedCount++;
+      
+      // Log progress setiap 10 pengajuan
+      if (processedCount % 10 === 0) {
+        logger.info('Generate download progress', {
+          processed: processedCount,
+          total: totalCount,
+          filterType: filter_type,
+          filterValue: filter_value
+        });
+      }
+    }
+
+    // Finalize archive
+    await archive.finalize();
+    await new Promise<void>((resolve, reject) => {
+      output.on('close', () => resolve());
+      output.on('error', (err) => reject(err));
+    });
+
+    logger.info('Generate download completed', {
+      totalPengajuan: totalCount,
+      processed: processedCount,
+      filterType: filter_type,
+      filterValue: filter_value,
+      filename,
+      fileId
+    });
+
+    // Return file ID for download
+    res.json({
+      success: true,
+      message: 'File ZIP berhasil di-generate',
+      data: {
+        file_id: fileId,
+        filename: `download-${filter_type}-${filterValueSafe}-${timestamp}.zip`,
+        download_url: `/api/pengajuan/download-generated/${fileId}`
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in generateDownload:', error);
+    logger.error('Error generating download', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Internal server error' 
+      });
+    }
+  }
+}
+
+// Download generated ZIP file
+export async function downloadGeneratedZip(req: AuthRequest, res: Response) {
+  try {
+    const user = req.user;
+    
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Hanya admin yang bisa download
+    if (user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only admin can download generated files' });
+    }
+
+    const { file_id } = req.params;
+    
+    if (!file_id) {
+      return res.status(400).json({ success: false, message: 'file_id wajib diisi' });
+    }
+
+    const generatedZipsPath = path.join(__dirname, '../../uploads/generated-zips');
+    
+    // Find file by file_id (filename starts with file_id)
+    const files = fs.readdirSync(generatedZipsPath);
+    const file = files.find(f => f.startsWith(file_id + '-'));
+    
+    if (!file) {
+      return res.status(404).json({ success: false, message: 'File tidak ditemukan atau sudah dihapus' });
+    }
+
+    const filePath = path.join(generatedZipsPath, file);
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, message: 'File tidak ditemukan' });
+    }
+
+    // Check file age (2 days = 48 hours = 172800000 ms)
+    const stats = fs.statSync(filePath);
+    const fileAge = Date.now() - stats.mtimeMs;
+    const twoDaysInMs = 2 * 24 * 60 * 60 * 1000;
+
+    if (fileAge > twoDaysInMs) {
+      // Delete expired file
+      fs.unlinkSync(filePath);
+      logger.info('Deleted expired generated ZIP file', { file, fileAge: fileAge / (1000 * 60 * 60) + ' hours' });
+      return res.status(410).json({ success: false, message: 'File sudah expired dan telah dihapus' });
+    }
+
+    // Extract original filename (remove file_id prefix)
+    const originalFilename = file.replace(/^[^-]+-/, '');
+
+    // Set headers for file download
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${originalFilename}"`);
+
+    // Stream the file
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+
+    logger.info('Generated ZIP file downloaded', { file_id, file, downloadedBy: user.id });
+
+  } catch (error) {
+    console.error('Error in downloadGeneratedZip:', error);
+    logger.error('Error downloading generated ZIP', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      file_id: req.params.file_id
+    });
+    
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Internal server error' 
+      });
+    }
+  }
+}
+
+// Cleanup expired generated ZIP files (older than 2 days)
+export async function cleanupExpiredGeneratedZips() {
+  try {
+    const generatedZipsPath = path.join(__dirname, '../../uploads/generated-zips');
+    
+    if (!fs.existsSync(generatedZipsPath)) {
+      return;
+    }
+
+    const files = fs.readdirSync(generatedZipsPath);
+    const twoDaysInMs = 2 * 24 * 60 * 60 * 1000;
+    let deletedCount = 0;
+
+    for (const file of files) {
+      const filePath = path.join(generatedZipsPath, file);
+      
+      try {
+        const stats = fs.statSync(filePath);
+        const fileAge = Date.now() - stats.mtimeMs;
+
+        if (fileAge > twoDaysInMs) {
+          fs.unlinkSync(filePath);
+          deletedCount++;
+          logger.info('Cleaned up expired generated ZIP file', { 
+            file, 
+            age: Math.round(fileAge / (1000 * 60 * 60)) + ' hours' 
+          });
+        }
+      } catch (error) {
+        logger.error('Error cleaning up file', { file, error: error instanceof Error ? error.message : 'Unknown error' });
+      }
+    }
+
+    if (deletedCount > 0) {
+      logger.info('Cleanup completed', { deletedCount, totalFiles: files.length });
+    }
+
+  } catch (error) {
+    logger.error('Error in cleanupExpiredGeneratedZips', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+  }
+}
+
 export default {
   getPegawaiGroupedByKabupaten,
   createPengajuan,
@@ -2791,5 +3124,8 @@ export default {
   editJabatanPengajuan,
   getPengajuanAuditLog,
   getAvailableJabatan,
-  updatePengajuanStatus
+  updatePengajuanStatus,
+  generateDownload,
+  downloadGeneratedZip,
+  cleanupExpiredGeneratedZips
 };
