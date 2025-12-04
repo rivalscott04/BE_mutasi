@@ -2782,9 +2782,9 @@ export async function generateDownload(req: AuthRequest, res: Response) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    // Hanya admin yang bisa generate download
-    if (user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Only admin can generate download' });
+    // Hanya admin dan user read-only yang bisa generate download
+    if (user.role !== 'admin' && user.role !== 'user') {
+      return res.status(403).json({ success: false, message: 'Only admin or user can generate download' });
     }
 
     const { filter_type, filter_value } = req.body;
@@ -2989,9 +2989,9 @@ export async function downloadGeneratedZip(req: AuthRequest, res: Response) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    // Hanya admin yang bisa download
-    if (user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Only admin can download generated files' });
+    // Hanya admin dan user read-only yang bisa download
+    if (user.role !== 'admin' && user.role !== 'user') {
+      return res.status(403).json({ success: false, message: 'Only admin or user can download generated files' });
     }
 
     const { file_id } = req.params;
