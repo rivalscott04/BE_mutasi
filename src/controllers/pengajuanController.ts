@@ -384,32 +384,37 @@ export async function createPengajuan(req: AuthRequest, res: Response) {
     }
 
     // Validasi duplikasi: cek apakah pegawai sudah punya pengajuan untuk jenis jabatan yang sama
+    // Catatan: Query ini akan otomatis mengabaikan record yang sudah dihapus (hard delete)
     console.log('🔍 Checking for duplicate pengajuan:', {
       pegawai_nip,
       jenis_jabatan: finalJenisJabatan,
       office_id: user.office_id
     });
 
-    const existingPengajuan = await Pengajuan.findOne({
+    // Cari semua pengajuan yang match (bukan hanya satu) untuk debugging
+    const existingPengajuans = await Pengajuan.findAll({
       where: {
         pegawai_nip: pegawai_nip,
         jenis_jabatan: finalJenisJabatan,
         office_id: user.office_id || null
-      }
+      },
+      attributes: ['id', 'status', 'created_at', 'updated_at']
     });
 
-    if (existingPengajuan) {
+    if (existingPengajuans && existingPengajuans.length > 0) {
       console.log('❌ Duplicate pengajuan found:', {
-        existing_id: existingPengajuan.id,
-        existing_status: existingPengajuan.status,
+        count: existingPengajuans.length,
+        existing_ids: existingPengajuans.map(p => p.id),
+        existing_statuses: existingPengajuans.map(p => p.status),
         pegawai_nip,
         jenis_jabatan: finalJenisJabatan,
         office_id: user.office_id
       });
       
+      const firstDuplicate = existingPengajuans[0];
       return res.status(400).json({ 
         success: false, 
-        message: `Pegawai ${pegawai.nama} (NIP: ${pegawai_nip}) sudah memiliki pengajuan untuk jabatan "${finalJenisJabatan}". Tidak dapat membuat pengajuan duplikat.` 
+        message: `Pegawai ${pegawai.nama} (NIP: ${pegawai_nip}) sudah memiliki pengajuan untuk jabatan "${finalJenisJabatan}" (ID: ${firstDuplicate.id}, Status: ${firstDuplicate.status}). Tidak dapat membuat pengajuan duplikat. Silakan hapus pengajuan yang sudah ada terlebih dahulu jika ingin membuat pengajuan baru.` 
       });
     }
 
