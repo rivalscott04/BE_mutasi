@@ -2156,6 +2156,7 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
     // Get kabupaten groups with counts (only for admin and user roles)
     let kabupatenGroupOptions: Array<{ groupName: string; kabupaten: string[]; count: number }> = [];
     let kabupatenOptions: Array<{ name: string; count: number }> = [];
+    let pegawaiOptions: Array<{ id: string; nama: string; nip?: string; count: number }> = [];
     
     if (user.role === 'admin' || user.role === 'user') {
       // Build include conditions
@@ -2187,6 +2188,35 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
       kabupatenOptions = Object.entries(kabupatenCounts)
         .map(([name, count]) => ({ name, count: count as number }))
         .sort((a, b) => a.name.localeCompare(b.name));
+
+      // Build pegawai options (distinct pegawai dari pengajuan yang sesuai filter)
+      const pengajuanWithPegawai = await Pengajuan.findAll({
+        where: whereClause,
+        include: [
+          { model: Pegawai, as: 'pegawai', attributes: ['nip', 'nama', 'id'], required: false }
+        ],
+        attributes: ['pegawai_nip'],
+        raw: false
+      });
+
+      const pegawaiMap: Record<string, { id: string; nama: string; nip?: string; count: number }> = {};
+
+      pengajuanWithPegawai.forEach((p: any) => {
+        const nip = p.pegawai?.nip || p.pegawai_nip;
+        if (!nip) return;
+        const key = nip;
+        if (!pegawaiMap[key]) {
+          pegawaiMap[key] = {
+            id: p.pegawai?.id || nip,
+            nama: p.pegawai?.nama || nip,
+            nip,
+            count: 0
+          };
+        }
+        pegawaiMap[key].count += 1;
+      });
+
+      pegawaiOptions = Object.values(pegawaiMap).sort((a, b) => a.nama.localeCompare(b.nama));
 
       // Get all unique kabupaten from offices database for pattern matching
       const allOffices = await Office.findAll({
@@ -2229,7 +2259,8 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
         statuses: statusOptions,
         jenisJabatan: jenisJabatanOptions,
         kabupatenGroups: kabupatenGroupOptions,
-        kabupaten: kabupatenOptions
+        kabupaten: kabupatenOptions,
+        pegawai: pegawaiOptions
       }
     });
   } catch (error) {
@@ -2780,7 +2811,7 @@ export async function getAvailableJabatan(req: AuthRequest, res: Response) {
   }
 }
 
-// Generate ZIP download by jabatan or kabupaten
+// Generate ZIP download by jabatan, kabupaten, atau pegawai
 export async function generateDownload(req: AuthRequest, res: Response) {
   try {
     const user = req.user;
@@ -2803,10 +2834,10 @@ export async function generateDownload(req: AuthRequest, res: Response) {
       });
     }
 
-    if (filter_type !== 'jabatan' && filter_type !== 'kabupaten') {
+    if (filter_type !== 'jabatan' && filter_type !== 'kabupaten' && filter_type !== 'pegawai') {
       return res.status(400).json({ 
         success: false, 
-        message: 'filter_type harus "jabatan" atau "kabupaten"' 
+        message: 'filter_type harus "jabatan", "kabupaten", atau "pegawai"' 
       });
     }
 
@@ -2835,6 +2866,27 @@ export async function generateDownload(req: AuthRequest, res: Response) {
       }
       
       whereClause.office_id = { [Op.in]: officeIds };
+    } else if (filter_type === 'pegawai') {
+      // Temukan pegawai berdasarkan id atau NIP
+      const pegawai = await Pegawai.findOne({
+        where: {
+          [Op.or]: [
+            { id: filter_value },
+            { nip: filter_value }
+          ]
+        },
+        attributes: ['nip', 'nama', 'id'],
+        raw: true
+      });
+
+      if (!pegawai) {
+        return res.status(404).json({
+          success: false,
+          message: `Pegawai dengan ID/NIP "${filter_value}" tidak ditemukan`
+        });
+      }
+
+      whereClause.pegawai_nip = pegawai.nip;
     }
 
     // Get all pengajuan dengan files
