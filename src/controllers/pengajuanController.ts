@@ -2827,7 +2827,7 @@ export async function generateDownload(req: AuthRequest, res: Response) {
 
     const { filter_type, filter_value } = req.body;
 
-    if (!filter_type || !filter_value) {
+    if (!filter_type || (!filter_value && filter_value !== 0)) {
       return res.status(400).json({ 
         success: false, 
         message: 'filter_type dan filter_value wajib diisi' 
@@ -2867,26 +2867,54 @@ export async function generateDownload(req: AuthRequest, res: Response) {
       
       whereClause.office_id = { [Op.in]: officeIds };
     } else if (filter_type === 'pegawai') {
+      // Dukungan multi-pegawai: filter_value bisa string atau array
+      const pegawaiValues: string[] = Array.isArray(filter_value)
+        ? filter_value
+        : [filter_value];
+
+      if (pegawaiValues.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Minimal pilih satu pegawai'
+        });
+      }
+
+      if (pegawaiValues.length > 20) {
+        return res.status(400).json({
+          success: false,
+          message: 'Maksimal 20 pegawai per generate'
+        });
+      }
+
       // Temukan pegawai berdasarkan id atau NIP
-      const pegawai = await Pegawai.findOne({
+      const pegawaiList = await Pegawai.findAll({
         where: {
           [Op.or]: [
-            { id: filter_value },
-            { nip: filter_value }
+            { id: { [Op.in]: pegawaiValues } },
+            { nip: { [Op.in]: pegawaiValues } }
           ]
         },
         attributes: ['nip', 'nama', 'id'],
         raw: true
       });
 
-      if (!pegawai) {
+      if (!pegawaiList || pegawaiList.length === 0) {
         return res.status(404).json({
           success: false,
-          message: `Pegawai dengan ID/NIP "${filter_value}" tidak ditemukan`
+          message: 'Pegawai tidak ditemukan'
         });
       }
 
-      whereClause.pegawai_nip = pegawai.nip;
+      const nips = Array.from(new Set(pegawaiList.map((p) => p.nip).filter(Boolean)));
+
+      if (nips.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Pegawai tidak memiliki NIP'
+        });
+      }
+
+      whereClause.pegawai_nip = { [Op.in]: nips };
     }
 
     // Get all pengajuan dengan files
