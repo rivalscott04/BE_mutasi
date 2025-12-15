@@ -3006,8 +3006,13 @@ export async function generateDownload(req: AuthRequest, res: Response) {
 
         // Sanitize folder names untuk menghindari karakter tidak valid
         const safeNip = nip.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const safeNama = (pegawai.nama || '')
+          .replace(/[^a-zA-Z0-9\s_-]/g, '')
+          .trim()
+          .replace(/\s+/g, '_');
+        const folderName = safeNama ? `${safeNama}_${safeNip}` : safeNip;
         const safeDisplayName = displayName.replace(/[^a-zA-Z0-9\s_-]/g, '').trim();
-        const zipPath = `${safeNip}/${safeDisplayName}/${file.file_name}`;
+        const zipPath = `${folderName}/${safeDisplayName}/${file.file_name}`;
 
         archive.file(sourceFilePath, { name: zipPath });
       }
