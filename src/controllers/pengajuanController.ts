@@ -2953,7 +2953,8 @@ export async function generateDownload(req: AuthRequest, res: Response) {
 
     // Generate unique filename with timestamp
     const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
-    const filterValueSafe = filter_value.replace(/[^a-zA-Z0-9]/g, '_');
+    const rawFilterValue = Array.isArray(filter_value) ? filter_value.join('-') : filter_value;
+    const filterValueSafe = String(rawFilterValue).replace(/[^a-zA-Z0-9]/g, '_');
     const fileId = uuidv4();
     const filename = `${fileId}-download-${filter_type}-${filterValueSafe}-${timestamp}.zip`;
     const filePath = path.join(generatedZipsPath, filename);
