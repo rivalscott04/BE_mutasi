@@ -65,7 +65,7 @@ export async function searchPegawai(req: Request, res: Response) {
     return res.status(400).json({ message: 'Query parameter q is required' });
   }
   
-  console.log(`🔍 Search query: "${q}"`);
+  console.log(` Search query: "${q}"`);
   
   const pegawai = await Pegawai.findAll({ 
     where: { 

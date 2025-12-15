@@ -18,7 +18,7 @@ export async function getAllLetters(req: Request, res: Response) {
   const user = (req as any).user;
   
   // Debug logging
-  console.log('🔍 getAllLetters - User info:', {
+  console.log(' getAllLetters - User info:', {
     role: user.role,
     office_id: user.office_id,
     wilayah: user.wilayah
@@ -29,16 +29,16 @@ export async function getAllLetters(req: Request, res: Response) {
   
   // Admin can see all letters
   if (user.role === 'admin') {
-    console.log('🔍 Admin user - no filtering applied');
+    console.log(' Admin user - no filtering applied');
     // No filtering needed
   }
   // All other users (including admin_wilayah) can only see letters from their office
   else if (user.office_id) {
-    console.log('🔍 User with office_id - filtering by office_id:', user.office_id);
+    console.log(' User with office_id - filtering by office_id:', user.office_id);
     whereClause.office_id = user.office_id;
   }
   
-  console.log('🔍 Final where clause:', whereClause);
+  console.log(' Final where clause:', whereClause);
   
   const letters = await Letter.findAll({
     where: whereClause,
@@ -49,7 +49,7 @@ export async function getAllLetters(req: Request, res: Response) {
     ]
   });
   
-  console.log('🔍 Found letters count:', letters.length);
+  console.log(' Found letters count:', letters.length);
   
   res.json({ letters });
 }

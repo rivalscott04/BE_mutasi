@@ -135,10 +135,10 @@ export async function getPengajuanDetail(req: Request, res: Response) {
     const { id } = req.params;
     const user = (req as any).user;
 
-    console.log('🔍 Admin Wilayah getPengajuanDetail:', { id, userRole: user?.role, userId: user?.id });
+    console.log(' Admin Wilayah getPengajuanDetail:', { id, userRole: user?.role, userId: user?.id });
 
     if (user.role !== 'admin_wilayah' && user.role !== 'admin') {
-      console.log('❌ Unauthorized access attempt:', user?.role);
+      console.log(' Unauthorized access attempt:', user?.role);
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
@@ -345,19 +345,19 @@ export async function uploadAdminWilayahFile(req: Request, res: Response) {
       if (normalizedJobTypeName !== (pengajuan as any).jenis_jabatan) {
         console.log('ℹ️ Normalized job type name:', (pengajuan as any).jenis_jabatan, '→', normalizedJobTypeName);
       }
-      console.log('🔍 Debug upload - pengajuan.jenis_jabatan:', normalizedJobTypeName);
+      console.log(' Debug upload - pengajuan.jenis_jabatan:', normalizedJobTypeName);
       const jobType = normalizedJobTypeName ? await (await import('../models/JobTypeConfiguration')).default.findOne({
         where: { jenis_jabatan: normalizedJobTypeName, is_active: true }
       }) : null;
       jobTypeId = jobType ? (jobType as any).id : null;
-      console.log('🔍 Debug upload - jobType found:', jobType);
-      console.log('🔍 Debug upload - jobTypeId:', jobTypeId);
+      console.log(' Debug upload - jobType found:', jobType);
+      console.log(' Debug upload - jobTypeId:', jobTypeId);
     } catch (error) {
-      console.error('❌ Error finding job type:', error);
+      console.error(' Error finding job type:', error);
     }
 
-    console.log('🔍 Debug upload - file_type:', file_type);
-    console.log('🔍 Debug upload - jobTypeId for query:', jobTypeId);
+    console.log(' Debug upload - file_type:', file_type);
+    console.log(' Debug upload - jobTypeId for query:', jobTypeId);
     
     const fileConfig = await AdminWilayahFileConfig.findOne({
       where: {
@@ -367,10 +367,10 @@ export async function uploadAdminWilayahFile(req: Request, res: Response) {
       }
     });
 
-    console.log('🔍 Debug upload - fileConfig found:', fileConfig);
+    console.log(' Debug upload - fileConfig found:', fileConfig);
 
     if (!fileConfig) {
-      console.log('❌ No file config found for:', { jobTypeId, file_type });
+      console.log(' No file config found for:', { jobTypeId, file_type });
       return res.status(400).json({ message: 'File type tidak valid untuk jenis jabatan ini' });
     }
 
@@ -543,7 +543,7 @@ export async function replaceAdminWilayahFile(req: Request, res: Response) {
     }
 
     // Debug file info
-    console.log('🔍 Debug admin wilayah file upload:', {
+    console.log(' Debug admin wilayah file upload:', {
       originalname: file.originalname,
       filename: file.filename,
       mimetype: file.mimetype,

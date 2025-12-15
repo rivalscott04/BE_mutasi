@@ -170,11 +170,11 @@ router.get('/files/:file_id', authMiddleware, async (req, res) => {
     const PengajuanFile = require('../models/PengajuanFile').default;
     const Pengajuan = require('../models/Pengajuan').default;
     
-    console.log(`🔍 Requesting file with ID: ${file_id}`);
+    console.log(` Requesting file with ID: ${file_id}`);
     
     const file = await PengajuanFile.findByPk(file_id);
     if (!file) {
-      console.log(`❌ File record not found in database for ID: ${file_id}`);
+      console.log(` File record not found in database for ID: ${file_id}`);
       return res.status(404).json({ success: false, message: 'File tidak ditemukan' });
     }
 
@@ -213,22 +213,22 @@ router.get('/files/:file_id', authMiddleware, async (req, res) => {
       filePath = path.resolve(__dirname, '../../', filePath);
     }
     
-    console.log(`🔍 Checking file existence at: ${filePath}`);
+    console.log(` Checking file existence at: ${filePath}`);
     
     if (!fs.existsSync(filePath)) {
-      console.log(`❌ Physical file not found at: ${filePath}`);
+      console.log(` Physical file not found at: ${filePath}`);
       // List directory contents for debugging
       const dir = path.dirname(filePath);
       try {
         const files = fs.readdirSync(dir);
         console.log(`📂 Directory ${dir} contains:`, files);
       } catch (dirError) {
-        console.log(`❌ Cannot read directory ${dir}:`, dirError);
+        console.log(` Cannot read directory ${dir}:`, dirError);
       }
       return res.status(404).json({ success: false, message: 'File tidak ditemukan di server' });
     }
 
-    console.log(`✅ File found, serving: ${file.file_name}`);
+    console.log(` File found, serving: ${file.file_name}`);
 
     // Set headers for file download
     res.setHeader('Content-Type', 'application/pdf');
@@ -238,7 +238,7 @@ router.get('/files/:file_id', authMiddleware, async (req, res) => {
     const fileStream = fs.createReadStream(filePath);
     fileStream.pipe(res);
   } catch (error) {
-    console.error('❌ Error downloading file:', error);
+    console.error(' Error downloading file:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });

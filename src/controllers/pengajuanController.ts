@@ -354,7 +354,7 @@ export async function createPengajuan(req: AuthRequest, res: Response) {
       
       if (jobTypeConfig) {
         totalDokumen = jobTypeConfig.max_dokumen || 0;
-        console.log('✅ Using job type config for:', finalJenisJabatan, 'with max_dokumen:', totalDokumen);
+        console.log('Using job type config for:', finalJenisJabatan, 'with max_dokumen:', totalDokumen);
       } else {
         return res.status(400).json({ success: false, message: `Konfigurasi jabatan "${finalJenisJabatan}" tidak ditemukan atau tidak aktif` });
       }
@@ -370,7 +370,7 @@ export async function createPengajuan(req: AuthRequest, res: Response) {
       
       if (jobTypeConfig) {
         totalDokumen = jobTypeConfig.max_dokumen || 0;
-        console.log('✅ Using default job type config for:', finalJenisJabatan, 'with max_dokumen:', totalDokumen);
+        console.log('Using default job type config for:', finalJenisJabatan, 'with max_dokumen:', totalDokumen);
       } else {
         return res.status(400).json({ success: false, message: 'Konfigurasi jabatan default tidak ditemukan' });
       }
@@ -385,7 +385,7 @@ export async function createPengajuan(req: AuthRequest, res: Response) {
 
     // Validasi duplikasi: cek apakah pegawai sudah punya pengajuan untuk jenis jabatan yang sama
     // Catatan: Query ini akan otomatis mengabaikan record yang sudah dihapus (hard delete)
-    console.log('🔍 Checking for duplicate pengajuan:', {
+    console.log('Checking for duplicate pengajuan:', {
       pegawai_nip,
       jenis_jabatan: finalJenisJabatan,
       office_id: user.office_id
@@ -402,7 +402,7 @@ export async function createPengajuan(req: AuthRequest, res: Response) {
     });
 
     if (existingPengajuans && existingPengajuans.length > 0) {
-      console.log('❌ Duplicate pengajuan found:', {
+      console.log('Duplicate pengajuan found:', {
         count: existingPengajuans.length,
         existing_ids: existingPengajuans.map(p => p.id),
         existing_statuses: existingPengajuans.map(p => p.status),
@@ -412,13 +412,15 @@ export async function createPengajuan(req: AuthRequest, res: Response) {
       });
       
       const firstDuplicate = existingPengajuans[0];
+      
+      // Backend mengembalikan error teknis dengan data, frontend yang akan format untuk user
       return res.status(400).json({ 
         success: false, 
-        message: `Pegawai ${pegawai.nama} (NIP: ${pegawai_nip}) sudah memiliki pengajuan untuk jabatan "${finalJenisJabatan}" (ID: ${firstDuplicate.id}, Status: ${firstDuplicate.status}). Tidak dapat membuat pengajuan duplikat. Silakan hapus pengajuan yang sudah ada terlebih dahulu jika ingin membuat pengajuan baru.` 
+        message: `Pegawai ${pegawai.nama} (NIP: ${pegawai_nip}) sudah memiliki pengajuan untuk jabatan "${finalJenisJabatan}" dengan status "${firstDuplicate.status}"`
       });
     }
 
-    console.log('✅ No duplicate found, proceeding with pengajuan creation');
+    console.log('No duplicate found, proceeding with pengajuan creation');
 
     // Create pengajuan (office_id mengikuti user)
     const pengajuan = await Pengajuan.create({
@@ -1095,7 +1097,7 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
     try {
       // Get from job type configuration - use case-insensitive comparison
       const jenisJabatanLower = pengajuan.jenis_jabatan?.toLowerCase().trim();
-      console.log('🔍 Looking for job type config with jenis_jabatan:', pengajuan.jenis_jabatan, '(normalized:', jenisJabatanLower, ')');
+      console.log(' Looking for job type config with jenis_jabatan:', pengajuan.jenis_jabatan, '(normalized:', jenisJabatanLower, ')');
       
       // Try exact match first
       jobTypeConfig = await JobTypeConfiguration.findOne({
@@ -1117,7 +1119,7 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
         ) || null;
         
         if (jobTypeConfig) {
-          console.log('✅ Found job type config with case-insensitive match:', jobTypeConfig.jenis_jabatan);
+          console.log(' Found job type config with case-insensitive match:', jobTypeConfig.jenis_jabatan);
         }
       }
       
@@ -1125,10 +1127,10 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
         // Parse JSON string to array
         try {
           requiredFiles = JSON.parse(jobTypeConfig.required_files);
-          console.log('✅ Using job type config for:', pengajuan.jenis_jabatan);
-          console.log('✅ Found config jenis_jabatan:', jobTypeConfig.jenis_jabatan);
-          console.log('✅ Required files count:', requiredFiles.length);
-          console.log('✅ Required files:', requiredFiles);
+          console.log(' Using job type config for:', pengajuan.jenis_jabatan);
+          console.log(' Found config jenis_jabatan:', jobTypeConfig.jenis_jabatan);
+          console.log(' Required files count:', requiredFiles.length);
+          console.log(' Required files:', requiredFiles);
         } catch (parseError) {
           console.error('Error parsing required_files JSON:', parseError);
           requiredFiles = [];
@@ -1136,15 +1138,15 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
       } else {
         // Log why we're using fallback
         if (!jobTypeConfig) {
-          console.log('⚠️  No job type config found for:', pengajuan.jenis_jabatan);
+          console.log('  No job type config found for:', pengajuan.jenis_jabatan);
           // Try to see what configs exist
           const allConfigs = await JobTypeConfiguration.findAll({
             where: { is_active: true },
             attributes: ['id', 'jenis_jabatan']
           });
-          console.log('⚠️  Available job type configs:', allConfigs.map(c => c.jenis_jabatan));
+          console.log('  Available job type configs:', allConfigs.map(c => c.jenis_jabatan));
         } else {
-          console.log('⚠️  Job type config found but required_files is empty');
+          console.log('  Job type config found but required_files is empty');
         }
         
         // Fallback: use default required files based on jenis_jabatan
@@ -1195,9 +1197,9 @@ export async function getPengajuanDetail(req: AuthRequest, res: Response) {
         };
         
         requiredFiles = defaultFiles[pengajuan.jenis_jabatan?.toLowerCase() || ''] || fungsionalUmum;
-        console.log('⚠️  Using fallback for:', pengajuan.jenis_jabatan);
-        console.log('⚠️  Fallback required files count:', requiredFiles.length);
-        console.log('⚠️  Required files:', requiredFiles);
+        console.log('  Using fallback for:', pengajuan.jenis_jabatan);
+        console.log('  Fallback required files count:', requiredFiles.length);
+        console.log('  Required files:', requiredFiles);
       }
     } catch (error) {
       console.error('Error getting required files:', error);
@@ -1319,7 +1321,7 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
     const offset = (Number(page) - 1) * Number(limit);
 
     // Debug logging
-    console.log('🔍 getAllPengajuan Debug:', {
+    console.log(' getAllPengajuan Debug:', {
       status,
       page,
       limit,
@@ -1445,7 +1447,7 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       const totalAdminWilayahApproved = await Pengajuan.count({
         where: { status: 'admin_wilayah_approved' }
       });
-      console.log('🔍 Total admin_wilayah_approved in database:', totalAdminWilayahApproved);
+      console.log(' Total admin_wilayah_approved in database:', totalAdminWilayahApproved);
       
       // Check by office
       const byOffice = await Pengajuan.findAll({
@@ -1464,8 +1466,8 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
       console.log('🏢 admin_wilayah_approved by office:', officeCounts);
       
       // Debug: Check what the actual query returns
-      console.log('🔍 Actual query where clause:', where);
-      console.log('🔍 Include conditions:', includeConditions);
+      console.log(' Actual query where clause:', where);
+      console.log(' Include conditions:', includeConditions);
       
       // Test query without includes
       const testQuery = await Pengajuan.findAndCountAll({
@@ -1475,7 +1477,7 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
         offset,
         distinct: true
       });
-      console.log('🔍 Test query without includes - count:', testQuery.count, 'rows:', testQuery.rows.length);
+      console.log(' Test query without includes - count:', testQuery.count, 'rows:', testQuery.rows.length);
     }
 
     // Additional debug: Check total count for admin_wilayah_submitted filter
@@ -1489,7 +1491,7 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
           required: true
         }]
       });
-      console.log('🔍 Total admin_wilayah_submitted in database:', totalAdminWilayahSubmitted);
+      console.log(' Total admin_wilayah_submitted in database:', totalAdminWilayahSubmitted);
       
       // Check by office
       const byOffice = await Pengajuan.findAll({
@@ -1551,8 +1553,8 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
         return acc;
       }, {} as Record<string, any[]>);
       
-      console.log('🔍 Backend grouped data:', groupedByKabkota);
-      console.log('🔍 Backend grouped data keys:', Object.keys(groupedByKabkota || {}));
+      console.log(' Backend grouped data:', groupedByKabkota);
+      console.log(' Backend grouped data keys:', Object.keys(groupedByKabkota || {}));
     }
 
     const paginationData = {
@@ -1738,7 +1740,7 @@ export async function replacePengajuanFile(req: AuthRequest, res: Response) {
     }
 
     // Debug file info
-    console.log('🔍 Debug file upload:', {
+    console.log(' Debug file upload:', {
       originalname: file.originalname,
       filename: file.filename,
       mimetype: file.mimetype,
@@ -1766,10 +1768,10 @@ export async function replacePengajuanFile(req: AuthRequest, res: Response) {
     }
 
     // Validasi file exists
-    console.log('🔍 Looking for file:', { fileId, pengajuanId, userRole: user?.role });
+    console.log(' Looking for file:', { fileId, pengajuanId, userRole: user?.role });
     
     const existingFile = await PengajuanFile.findByPk(fileId);
-    console.log('🔍 File found in DB:', { 
+    console.log(' File found in DB:', { 
       found: !!existingFile, 
       fileId: existingFile?.id,
       pengajuanId: existingFile?.pengajuan_id,
@@ -1779,7 +1781,7 @@ export async function replacePengajuanFile(req: AuthRequest, res: Response) {
     });
     
     if (!existingFile) {
-      console.log('❌ File not found in database:', { fileId });
+      console.log(' File not found in database:', { fileId });
       return res.status(404).json({
         success: false,
         message: 'File tidak ditemukan di database'
@@ -1787,7 +1789,7 @@ export async function replacePengajuanFile(req: AuthRequest, res: Response) {
     }
     
     if (existingFile.pengajuan_id !== pengajuanId) {
-      console.log('❌ File pengajuan_id mismatch:', { 
+      console.log(' File pengajuan_id mismatch:', { 
         filePengajuanId: existingFile.pengajuan_id, 
         requestPengajuanId: pengajuanId 
       });
@@ -1798,7 +1800,7 @@ export async function replacePengajuanFile(req: AuthRequest, res: Response) {
     }
 
     // Debug file category untuk super admin
-    console.log('🔍 Super admin replacing file:', {
+    console.log(' Super admin replacing file:', {
       fileId,
       fileCategory: existingFile.file_category,
       fileType: existingFile.file_type,
@@ -1822,7 +1824,7 @@ export async function replacePengajuanFile(req: AuthRequest, res: Response) {
       
       // Hapus file duplikat jika ada
       if (duplicateFiles.length > 0) {
-        console.log(`🗑️ Removing ${duplicateFiles.length} duplicate admin wilayah files for type: ${existingFile.file_type}`);
+        console.log(` Removing ${duplicateFiles.length} duplicate admin wilayah files for type: ${existingFile.file_type}`);
         await PengajuanFile.destroy({
           where: {
             id: { [require('sequelize').Op.in]: duplicateFiles.map(f => f.id) }
@@ -1882,7 +1884,7 @@ export async function deletePengajuan(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, message: 'Pengajuan not found' });
     }
 
-    console.log('🔍 Debug deletePengajuan:', {
+    console.log(' Debug deletePengajuan:', {
       pengajuanId: id,
       pengajuanStatus: pengajuan.status,
       userRole: user.role,
@@ -1903,7 +1905,7 @@ export async function deletePengajuan(req: AuthRequest, res: Response) {
       }
     } else {
       // Admin bisa hapus semua pengajuan dengan status apapun tanpa batasan office
-      console.log('✅ Admin deleting pengajuan with status:', pengajuan.status);
+      console.log(' Admin deleting pengajuan with status:', pengajuan.status);
     }
 
     // Delete pengajuan (akan cascade delete files juga)
@@ -2038,7 +2040,7 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
       });
       if (userWithOffice) {
         user.office_id = userWithOffice.office_id;
-        console.log('🔍 Loaded office_id for admin_wilayah:', user.office_id);
+        console.log(' Loaded office_id for admin_wilayah:', user.office_id);
       }
     }
 
@@ -2072,7 +2074,7 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
       whereClause.created_by = created_by;
     }
     
-    console.log('🔍 Filter Options - User role:', user.role, 'Office ID:', user.office_id, 'User ID:', user.id);
+    console.log(' Filter Options - User role:', user.role, 'Office ID:', user.office_id, 'User ID:', user.id);
     
     // RBAC filter - konsisten dengan getAllPengajuan
     // - admin: lihat semua
@@ -2082,20 +2084,20 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
     // - kanwil: lihat pengajuan yang mereka buat
     if (user.role === 'user') {
       whereClause.status = 'final_approved';
-      console.log('🔍 Read-only user filter - status: final_approved');
+      console.log(' Read-only user filter - status: final_approved');
     } else if (user.role === 'admin_wilayah') {
       whereClause.office_id = user.office_id;
-      console.log('🔍 Admin wilayah filter - office_id:', user.office_id);
+      console.log(' Admin wilayah filter - office_id:', user.office_id);
     } else if (user.role === 'operator' || user.role === 'kanwil') {
       whereClause.created_by = user.id;
-      console.log('🔍 Operator/Kanwil filter - created_by:', user.id);
+      console.log(' Operator/Kanwil filter - created_by:', user.id);
     }
     // admin: no restrictions
     
-    console.log('🔍 Where clause for status filter:', whereClause);
+    console.log(' Where clause for status filter:', whereClause);
 
     // Get unique statuses from pengajuan with count - only show statuses that actually exist in database
-    console.log('🔍 Getting status data with whereClause:', whereClause);
+    console.log(' Getting status data with whereClause:', whereClause);
     const statusData = await Pengajuan.findAll({
       attributes: [
         'status',
@@ -2109,7 +2111,7 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
     });
 
     // Get unique jenis jabatan from pengajuan with count
-    console.log('🔍 Getting jenis jabatan data with whereClause:', whereClause);
+    console.log(' Getting jenis jabatan data with whereClause:', whereClause);
     const jenisJabatanData = await Pengajuan.findAll({
       attributes: [
         'jenis_jabatan',
@@ -2122,8 +2124,8 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
       order: [['jenis_jabatan', 'ASC']]
     });
 
-    console.log('🔍 Status data from database:', statusData);
-    console.log('🔍 Jenis jabatan data from database:', jenisJabatanData);
+    console.log(' Status data from database:', statusData);
+    console.log(' Jenis jabatan data from database:', jenisJabatanData);
 
     // Tidak perlu special handling lagi karena status 'admin_wilayah_submitted' sudah ada di database
     // Logika lama sudah tidak digunakan karena sekarang ada status 'admin_wilayah_submitted' yang terpisah
@@ -2137,8 +2139,8 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
         count: parseInt((item as any).count as string)
       }));
 
-    console.log('🔍 Backend - Status data from DB:', statusData);
-    console.log('🔍 Backend - Formatted status options:', statusOptions);
+    console.log(' Backend - Status data from DB:', statusData);
+    console.log(' Backend - Formatted status options:', statusOptions);
 
     // Format jenis jabatan options with count
     const jenisJabatanOptions = jenisJabatanData
@@ -2149,7 +2151,7 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
         count: parseInt((item as any).count as string)
       }));
 
-    console.log('🔍 Backend - Jenis jabatan options:', jenisJabatanOptions);
+    console.log(' Backend - Jenis jabatan options:', jenisJabatanOptions);
 
     // Get kabupaten groups with counts (only for admin and user roles)
     let kabupatenGroupOptions: Array<{ groupName: string; kabupaten: string[]; count: number }> = [];
