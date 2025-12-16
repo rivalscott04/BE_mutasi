@@ -2974,12 +2974,12 @@ export async function generateDownload(req: AuthRequest, res: Response) {
     // Pipe archive to file
     archive.pipe(output);
 
-    // Handle archiver warnings/errors explicitly
+    // Handle archiver warnings/errors explicitly (jangan throw langsung supaya tidak crash process)
     archive.on('warning', (err) => {
       logger.warn('Archiver warning during generateDownload', { message: err.message, code: (err as any).code });
     });
     archive.on('error', (err) => {
-      throw err;
+      logger.error('Archiver error during generateDownload', { message: err.message, stack: err.stack });
     });
 
     // Process each pengajuan in small batches to avoid long synchronous loops
