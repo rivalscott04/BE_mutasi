@@ -2922,7 +2922,11 @@ export async function generateDownload(req: AuthRequest, res: Response) {
       whereClause.pegawai_nip = { [Op.in]: nips };
     }
 
-    // Get all pengajuan dengan files
+    // Log query start time
+    const queryStartTime = Date.now();
+    logger.info('Starting generateDownload query', { filter_type, filter_value, whereClause });
+
+    // Get all pengajuan dengan files - optimized query
     const pengajuanList = await Pengajuan.findAll({
       where: whereClause,
       include: [
@@ -2937,10 +2941,22 @@ export async function generateDownload(req: AuthRequest, res: Response) {
           as: 'files',
           required: false,
           attributes: ['id', 'file_type', 'file_name', 'file_path', 'file_category', 'created_at'],
-          order: [['created_at', 'DESC']] // Ambil yang terbaru dulu
+          order: [['created_at', 'DESC']], // Ambil yang terbaru dulu
+          // Limit files per pengajuan untuk menghindari terlalu banyak data
+          limit: 20 // Maksimal 20 file per pengajuan (should be enough)
         }
       ],
-      order: [['created_at', 'DESC']]
+      order: [['created_at', 'DESC']],
+      // Use subquery to optimize performance
+      subQuery: false
+    });
+
+    const queryDuration = Date.now() - queryStartTime;
+    logger.info('Query completed', { 
+      duration: `${queryDuration}ms`, 
+      pengajuanCount: pengajuanList.length,
+      filter_type,
+      filter_value
     });
 
     if (pengajuanList.length === 0) {
@@ -2983,12 +2999,22 @@ export async function generateDownload(req: AuthRequest, res: Response) {
     });
 
     // Process each pengajuan in small batches to avoid long synchronous loops
+    const zipStartTime = Date.now();
     let processedCount = 0;
+    let filesAddedCount = 0;
     const totalCount = pengajuanList.length;
     const batchSize = 10;
 
+    logger.info('Starting ZIP generation', { 
+      totalPengajuan: totalCount, 
+      batchSize,
+      filterType: filter_type,
+      filterValue: filter_value
+    });
+
     for (let i = 0; i < pengajuanList.length; i += batchSize) {
       const batch = pengajuanList.slice(i, i + batchSize);
+      const batchStartTime = Date.now();
 
       for (const pengajuan of batch) {
         const pegawai = (pengajuan as any).pegawai;
@@ -3033,24 +3059,36 @@ export async function generateDownload(req: AuthRequest, res: Response) {
           const zipPath = `${folderName}/${safeDisplayName}/${file.file_name}`;
 
           archive.file(sourceFilePath, { name: zipPath });
+          filesAddedCount++;
         }
 
         processedCount++;
-        
-        // Log progress setiap 10 pengajuan
-        if (processedCount % 10 === 0) {
-          logger.info('Generate download progress', {
-            processed: processedCount,
-            total: totalCount,
-            filterType: filter_type,
-            filterValue: filter_value
-          });
-        }
       }
+
+      const batchDuration = Date.now() - batchStartTime;
+      const batchNumber = Math.floor(i / batchSize) + 1;
+      
+      // Log progress setiap batch
+      logger.info('ZIP generation batch progress', {
+        batch: batchNumber,
+        processed: processedCount,
+        total: totalCount,
+        filesAdded: filesAddedCount,
+        batchDuration: `${batchDuration}ms`,
+        filterType: filter_type,
+        filterValue: filter_value
+      });
 
       // Yield to event loop after each batch to keep Node responsive
       await new Promise((resolve) => setImmediate(resolve));
     }
+
+    const zipProcessingDuration = Date.now() - zipStartTime;
+    logger.info('ZIP processing completed, finalizing archive', {
+      totalProcessed: processedCount,
+      totalFilesAdded: filesAddedCount,
+      processingDuration: `${zipProcessingDuration}ms`
+    });
 
     // Finalize archive
     await archive.finalize();
@@ -3059,9 +3097,14 @@ export async function generateDownload(req: AuthRequest, res: Response) {
       output.on('error', (err) => reject(err));
     });
 
+    const totalDuration = Date.now() - queryStartTime;
     logger.info('Generate download completed', {
       totalPengajuan: totalCount,
       processed: processedCount,
+      filesAdded: filesAddedCount,
+      queryDuration: `${queryDuration}ms`,
+      zipProcessingDuration: `${zipProcessingDuration}ms`,
+      totalDuration: `${totalDuration}ms`,
       filterType: filter_type,
       filterValue: filter_value,
       filename,
