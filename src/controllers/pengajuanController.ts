@@ -2814,6 +2814,11 @@ export async function getAvailableJabatan(req: AuthRequest, res: Response) {
 // Generate ZIP download by jabatan, kabupaten, atau pegawai
 export async function generateDownload(req: AuthRequest, res: Response) {
   try {
+    // Extend timeout to allow long-running ZIP generation (default Node timeout ~2m)
+    // Nginx has been increased, so align backend to avoid upstream 502.
+    req.setTimeout(15 * 60 * 1000);
+    res.setTimeout(15 * 60 * 1000);
+
     const user = req.user;
     
     if (!user) {
@@ -2962,72 +2967,89 @@ export async function generateDownload(req: AuthRequest, res: Response) {
     // Setup ZIP archive to file
     const output = fs.createWriteStream(filePath);
     const archive = archiver('zip', {
-      zlib: { level: 9 } // Maximum compression
+      // Lower compression level to speed up processing and reduce CPU spikes
+      zlib: { level: 4 }
     });
 
     // Pipe archive to file
     archive.pipe(output);
 
-    // Process each pengajuan
+    // Handle archiver warnings/errors explicitly
+    archive.on('warning', (err) => {
+      logger.warn('Archiver warning during generateDownload', { message: err.message, code: (err as any).code });
+    });
+    archive.on('error', (err) => {
+      throw err;
+    });
+
+    // Process each pengajuan in small batches to avoid long synchronous loops
     let processedCount = 0;
     const totalCount = pengajuanList.length;
+    const batchSize = 10;
 
-    for (const pengajuan of pengajuanList) {
-      const pegawai = (pengajuan as any).pegawai;
-      const files = (pengajuan as any).files || [];
-      
-      if (!pegawai || !pegawai.nip || files.length === 0) {
-        continue;
-      }
+    for (let i = 0; i < pengajuanList.length; i += batchSize) {
+      const batch = pengajuanList.slice(i, i + batchSize);
 
-      const nip = pegawai.nip;
-      
-      // Group files by file_type, ambil yang terbaru
-      const fileMap = new Map<string, any>();
-      for (const file of files) {
-        const existing = fileMap.get(file.file_type);
-        if (!existing || new Date(file.created_at) > new Date(existing.created_at)) {
-          fileMap.set(file.file_type, file);
-        }
-      }
-
-      // Add files to ZIP dengan struktur: {NIP}/{display_name}/file.pdf
-      for (const [fileType, file] of fileMap.entries()) {
-        const displayName = getFileDisplayName(fileType);
-        const sourceFilePath = path.isAbsolute(file.file_path) 
-          ? file.file_path 
-          : path.resolve(__dirname, '../../', file.file_path);
+      for (const pengajuan of batch) {
+        const pegawai = (pengajuan as any).pegawai;
+        const files = (pengajuan as any).files || [];
         
-        // Check if file exists
-        if (!fs.existsSync(sourceFilePath)) {
-          logger.warn('File not found, skipping', { filePath: sourceFilePath, pengajuanId: pengajuan.id });
+        if (!pegawai || !pegawai.nip || files.length === 0) {
           continue;
         }
 
-        // Sanitize folder names untuk menghindari karakter tidak valid
-        const safeNip = nip.replace(/[^a-zA-Z0-9_-]/g, '_');
-        const safeNama = (pegawai.nama || '')
-          .replace(/[^a-zA-Z0-9\s_-]/g, '')
-          .trim()
-          .replace(/\s+/g, '_');
-        const folderName = safeNama ? `${safeNama}_${safeNip}` : safeNip;
-        const safeDisplayName = displayName.replace(/[^a-zA-Z0-9\s_-]/g, '').trim();
-        const zipPath = `${folderName}/${safeDisplayName}/${file.file_name}`;
+        const nip = pegawai.nip;
+        
+        // Group files by file_type, ambil yang terbaru
+        const fileMap = new Map<string, any>();
+        for (const file of files) {
+          const existing = fileMap.get(file.file_type);
+          if (!existing || new Date(file.created_at) > new Date(existing.created_at)) {
+            fileMap.set(file.file_type, file);
+          }
+        }
 
-        archive.file(sourceFilePath, { name: zipPath });
+        // Add files to ZIP dengan struktur: {NIP}/{display_name}/file.pdf
+        for (const [fileType, file] of fileMap.entries()) {
+          const displayName = getFileDisplayName(fileType);
+          const sourceFilePath = path.isAbsolute(file.file_path) 
+            ? file.file_path 
+            : path.resolve(__dirname, '../../', file.file_path);
+          
+          // Check if file exists
+          if (!fs.existsSync(sourceFilePath)) {
+            logger.warn('File not found, skipping', { filePath: sourceFilePath, pengajuanId: pengajuan.id });
+            continue;
+          }
+
+          // Sanitize folder names untuk menghindari karakter tidak valid
+          const safeNip = nip.replace(/[^a-zA-Z0-9_-]/g, '_');
+          const safeNama = (pegawai.nama || '')
+            .replace(/[^a-zA-Z0-9\s_-]/g, '')
+            .trim()
+            .replace(/\s+/g, '_');
+          const folderName = safeNama ? `${safeNama}_${safeNip}` : safeNip;
+          const safeDisplayName = displayName.replace(/[^a-zA-Z0-9\s_-]/g, '').trim();
+          const zipPath = `${folderName}/${safeDisplayName}/${file.file_name}`;
+
+          archive.file(sourceFilePath, { name: zipPath });
+        }
+
+        processedCount++;
+        
+        // Log progress setiap 10 pengajuan
+        if (processedCount % 10 === 0) {
+          logger.info('Generate download progress', {
+            processed: processedCount,
+            total: totalCount,
+            filterType: filter_type,
+            filterValue: filter_value
+          });
+        }
       }
 
-      processedCount++;
-      
-      // Log progress setiap 10 pengajuan
-      if (processedCount % 10 === 0) {
-        logger.info('Generate download progress', {
-          processed: processedCount,
-          total: totalCount,
-          filterType: filter_type,
-          filterValue: filter_value
-        });
-      }
+      // Yield to event loop after each batch to keep Node responsive
+      await new Promise((resolve) => setImmediate(resolve));
     }
 
     // Finalize archive
