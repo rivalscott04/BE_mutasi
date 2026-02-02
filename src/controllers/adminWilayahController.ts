@@ -562,8 +562,10 @@ export async function replaceAdminWilayahFile(req: Request, res: Response) {
       });
     }
 
-    // Validasi office_id - admin wilayah hanya bisa ganti file di wilayahnya, superadmin bisa ganti semua
-    if (user.role === 'admin_wilayah' && pengajuan.office_id !== user.office_id) {
+    // Validasi office_id - admin wilayah hanya bisa ganti file di wilayahnya, superadmin bisa ganti semua (bandingkan sebagai string agar konsisten)
+    const userOfficeId = user.office_id != null ? String(user.office_id) : '';
+    const pengajuanOfficeId = pengajuan.office_id != null ? String(pengajuan.office_id) : '';
+    if (user.role === 'admin_wilayah' && pengajuanOfficeId !== userOfficeId) {
       return res.status(403).json({
         success: false,
         message: 'Anda hanya bisa mengganti file di wilayah Anda'
