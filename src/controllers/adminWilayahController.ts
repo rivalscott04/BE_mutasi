@@ -587,12 +587,17 @@ export async function replaceAdminWilayahFile(req: Request, res: Response) {
       });
     }
 
-    // Validasi file category - admin wilayah hanya bisa ganti file kabupaten/kota, superadmin bisa ganti semua
+    // Validasi file category:
+    // - Admin wilayah: bisa ganti file kabupaten/kota di wilayahnya; bisa ganti file admin_wilayah HANYA jika status pengajuan final_approved (overwrite berkas kanwil setelah final)
+    // - Superadmin: bisa ganti semua
     if (user.role === 'admin_wilayah' && existingFile.file_category === 'admin_wilayah') {
-      return res.status(403).json({
-        success: false,
-        message: 'Admin wilayah tidak bisa mengganti file admin wilayah'
-      });
+      const statusLower = (pengajuan.status || '').toString().toLowerCase();
+      if (statusLower !== 'final_approved') {
+        return res.status(403).json({
+          success: false,
+          message: 'Admin wilayah hanya bisa mengganti berkas admin wilayah ketika status pengajuan sudah Final Approved'
+        });
+      }
     }
 
     // Simpan path file lama untuk audit
