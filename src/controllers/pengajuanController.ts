@@ -1271,7 +1271,17 @@ export async function getAllPengajuan(req: AuthRequest, res: Response) {
         where.status = status;
       }
     } else if (user.role === 'operator' || user.role === 'kanwil') {
-      where.created_by = user.id;
+      // Operator/Kanwil hanya lihat pengajuan yang mereka buat; pengajuan buatan admin_wilayah tidak tampil
+      const adminWilayahUsers = await User.findAll({
+        where: { role: 'admin_wilayah' },
+        attributes: ['id'],
+        raw: true
+      });
+      const adminWilayahUserIds = adminWilayahUsers.map((u: any) => u.id);
+      where[Op.and] = [
+        { created_by: user.id },
+        ...(adminWilayahUserIds.length > 0 ? [{ created_by: { [Op.notIn]: adminWilayahUserIds } }] : [])
+      ];
       // Operator/Kanwil bisa filter by status dari query parameter
       if (status) {
         where.status = status;
@@ -2089,8 +2099,18 @@ export async function getFilterOptions(req: AuthRequest, res: Response) {
       whereClause.office_id = user.office_id;
       console.log(' Admin wilayah filter - office_id:', user.office_id);
     } else if (user.role === 'operator' || user.role === 'kanwil') {
-      whereClause.created_by = user.id;
-      console.log(' Operator/Kanwil filter - created_by:', user.id);
+      // Konsisten dengan getAllPengajuan: pengajuan buatan admin_wilayah tidak ikut di filter options
+      const adminWilayahUsers = await User.findAll({
+        where: { role: 'admin_wilayah' },
+        attributes: ['id'],
+        raw: true
+      });
+      const adminWilayahUserIds = adminWilayahUsers.map((u: any) => u.id);
+      whereClause[Op.and] = [
+        { created_by: user.id },
+        ...(adminWilayahUserIds.length > 0 ? [{ created_by: { [Op.notIn]: adminWilayahUserIds } }] : [])
+      ];
+      console.log(' Operator/Kanwil filter - created_by:', user.id, '(exclude admin_wilayah)');
     }
     // admin: no restrictions
     

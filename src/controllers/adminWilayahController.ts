@@ -236,9 +236,11 @@ export async function approvePengajuan(req: Request, res: Response) {
       return res.status(403).json({ message: 'Anda tidak memiliki akses ke pengajuan ini' });
     }
 
-    // Hanya boleh approve saat status submitted dari kab/kota
-    if (pengajuan.status !== 'submitted') {
-      return res.status(400).json({ message: 'Pengajuan harus berstatus submitted untuk disetujui Admin Wilayah' });
+    const isOwnDraft = (pengajuan as any).created_by === user.id && pengajuan.status === 'draft';
+
+    // Boleh approve: (1) status submitted dari kab/kota, atau (2) draft buatan sendiri (admin wilayah verifikasi lalu bisa ajukan ke superadmin)
+    if (pengajuan.status !== 'submitted' && !isOwnDraft) {
+      return res.status(400).json({ message: 'Pengajuan harus berstatus submitted atau draft (buatan Anda) untuk disetujui Admin Wilayah' });
     }
 
     // Update status pengajuan
@@ -332,8 +334,15 @@ export async function uploadAdminWilayahFile(req: Request, res: Response) {
       return res.status(403).json({ message: 'Anda tidak memiliki akses ke pengajuan ini' });
     }
 
-    // Bisa upload file untuk pengajuan yang sudah approved atau sudah diapprove/ditolak admin wilayah
-    if (pengajuan.status !== 'approved' && pengajuan.status !== 'admin_wilayah_approved' && pengajuan.status !== 'admin_wilayah_rejected') {
+    const isOwnDraft = (pengajuan as any).created_by === user.id && pengajuan.status === 'draft';
+
+    // Bisa upload: status approved/admin_wilayah_approved/admin_wilayah_rejected, atau draft buatan sendiri (untuk lengkapi berkas sebelum ajukan ke superadmin)
+    if (
+      pengajuan.status !== 'approved' &&
+      pengajuan.status !== 'admin_wilayah_approved' &&
+      pengajuan.status !== 'admin_wilayah_rejected' &&
+      !isOwnDraft
+    ) {
       return res.status(400).json({ message: 'Pengajuan belum approved atau sudah selesai' });
     }
 
@@ -465,10 +474,16 @@ export async function submitToSuperadmin(req: Request, res: Response) {
 
     const isResubmittingAfterFinalReject = pengajuan.status === 'admin_wilayah_rejected' && !!(pengajuan as any).final_rejected_at;
     const isResubmittingAfterReject = pengajuan.status === 'admin_wilayah_rejected';
+    const isOwnDraftDirectSubmit = (pengajuan as any).created_by === user.id && pengajuan.status === 'draft';
 
-    // Hanya bisa submit ke superadmin jika sudah diapprove admin wilayah atau sedang resubmit setelah ditolak
-    if (pengajuan.status !== 'admin_wilayah_approved' && !isResubmittingAfterFinalReject && !isResubmittingAfterReject) {
-      return res.status(400).json({ message: 'Pengajuan harus disetujui Admin Wilayah sebelum diajukan ke Superadmin' });
+    // Bisa submit: sudah admin_wilayah_approved, atau resubmit setelah ditolak, atau draft buatan sendiri (langsung ajukan ke superadmin)
+    if (
+      pengajuan.status !== 'admin_wilayah_approved' &&
+      !isResubmittingAfterFinalReject &&
+      !isResubmittingAfterReject &&
+      !isOwnDraftDirectSubmit
+    ) {
+      return res.status(400).json({ message: 'Pengajuan harus disetujui Admin Wilayah atau berstatus draft (buatan Anda) untuk diajukan ke Superadmin' });
     }
 
     // Validasi kelengkapan dokumen Admin Wilayah (wajib)
