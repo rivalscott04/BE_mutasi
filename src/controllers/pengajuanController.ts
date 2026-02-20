@@ -286,13 +286,19 @@ export async function getPegawaiGroupedByKabupaten(req: AuthRequest, res: Respon
     console.log('Total pegawai found:', pegawai.length);
 
     // Count surat for each pegawai
+    // Admin: semua surat. Admin wilayah: surat di kantor mereka (siapa pun pembuatnya). Operator/Kanwil: surat yang mereka buat.
     const pegawaiWithSuratCount = await Promise.all(
       pegawai.map(async (p) => {
+        const letterCountWhere: any = { recipient_employee_nip: p.nip };
+        if (user.role === 'admin') {
+          // no extra filter
+        } else if (user.role === 'admin_wilayah' && user.office_id) {
+          letterCountWhere.office_id = user.office_id;
+        } else {
+          letterCountWhere.created_by = user.id;
+        }
         const suratCount = await Letter.count({
-          where: { 
-            recipient_employee_nip: p.nip,
-            ...(user.role !== 'admin' ? { created_by: user.id } : {})
-          }
+          where: letterCountWhere
         });
         return {
           ...p.toJSON(),
